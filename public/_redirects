@@ -1,1 +1,3 @@
-/*    /index.html   200
+# Apenas rotas do app Vite (SPA). Marketing Next gera HTML real em /.
+# NÃO usar /* → index.html aqui: no deploy unificado o merge gera _redirects
+# sem catch-all, para não interceptar /videos/*.mp4 no Netlify.
