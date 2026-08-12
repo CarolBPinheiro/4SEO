@@ -1,5 +1,6 @@
 # Netlify — domínio único https://4seo.app
 # Marketing (Next export) + App autenticado (Vite SPA) mesclados em deploy-out/
+# Rotas SPA: scripts/merge-frontend-deploy.mjs gera deploy-out/_redirects no build.
 
 [build]
   command = "npm run build:go-live"
@@ -7,6 +8,10 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Conflito peerOptional: @base-ui/react quer date-fns@4; react-day-picker usa date-fns@3
+  NPM_FLAGS = "--legacy-peer-deps"
+  # Projeto é export estático + Vite SPA (deploy-out), não o Next Runtime do Netlify
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
 # Variáveis obrigatórias no painel Netlify (Site settings → Environment variables):
 # NEXT_PUBLIC_APP_URL=https://4seo.app
@@ -17,7 +22,23 @@
 # VITE_MARKETING_URL=https://4seo.app
 # VITE_AUTH_REDIRECT_URL=https://4seo.app/login
 
+# Segurança (CDN) — headers só afetam arquivos estáticos servidos pelo Netlify
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Assets com hash (Vite) — cache longo no browser; deploy invalida no CDN
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML (marketing Next + spa.html) — sempre revalidar no browser
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
