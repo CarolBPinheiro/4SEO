@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 340" fill="none">
+  <!-- Ground shadows -->
+  <ellipse cx="140" cy="310" rx="55" ry="10" fill="#1a1a1a"/>
+  <ellipse cx="360" cy="310" rx="55" ry="10" fill="#1a1a1a"/>
+  <ellipse cx="250" cy="320" rx="70" ry="12" fill="#1a1a1a"/>
+
+  <!-- Left person (white/gray) -->
+  <circle cx="140" cy="105" r="22" fill="#e5e5e5"/>
+  <!-- Hair -->
+  <path d="M120 100 Q120 80 140 78 Q160 80 160 100" fill="#555"/>
+  <!-- Body -->
+  <rect x="126" y="127" width="28" height="55" rx="10" fill="#e5e5e5"/>
+  <!-- Arms raised (shrugging) -->
+  <path d="M126 140 L95 120 L88 125" stroke="#e5e5e5" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M154 140 L175 125" stroke="#e5e5e5" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Legs -->
+  <rect x="129" y="178" width="10" height="60" rx="5" fill="#888"/>
+  <rect x="145" y="178" width="10" height="60" rx="5" fill="#888"/>
+  <!-- Shoes -->
+  <ellipse cx="134" cy="240" rx="10" ry="6" fill="#F97316"/>
+  <ellipse cx="150" cy="240" rx="10" ry="6" fill="#F97316"/>
+  <!-- Cable from left person -->
+  <path d="M175 130 Q200 160 210 200 Q220 240 240 255" stroke="#555" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+  <!-- Right person (orange shirt) -->
+  <circle cx="360" cy="95" r="22" fill="#e5e5e5"/>
+  <!-- Hair bun -->
+  <path d="M340 90 Q340 70 360 68 Q380 70 380 90" fill="#333"/>
+  <circle cx="365" cy="72" r="8" fill="#333"/>
+  <!-- Body (orange shirt) -->
+  <rect x="346" y="117" width="28" height="50" rx="10" fill="#F97316"/>
+  <!-- Arms holding plug -->
+  <path d="M346 130 L310 150 L295 160" stroke="#F97316" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M374 130 L395 150" stroke="#F97316" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Legs -->
+  <rect x="349" y="163" width="10" height="65" rx="5" fill="#666"/>
+  <rect x="365" y="163" width="10" height="65" rx="5" fill="#666"/>
+  <!-- Shoes -->
+  <ellipse cx="354" cy="230" rx="10" ry="6" fill="#F97316"/>
+  <ellipse cx="370" cy="230" rx="10" ry="6" fill="#F97316"/>
+
+  <!-- Plug (being held by right person) -->
+  <rect x="270" y="148" width="30" height="24" rx="4" fill="#444"/>
+  <!-- Plug prongs -->
+  <rect x="279" y="138" width="5" height="14" rx="2" fill="#F97316"/>
+  <rect x="288" y="138" width="5" height="14" rx="2" fill="#F97316"/>
+  <!-- Cable from plug -->
+  <path d="M285 172 Q290 200 300 220 Q310 240 330 250" stroke="#555" stroke-width="4" stroke-linecap="round" fill="none"/>
+
+  <!-- Socket on ground -->
+  <rect x="215" y="270" width="70" height="40" rx="8" fill="#F97316" opacity="0.85"/>
+  <rect x="230" y="278" width="40" height="24" rx="5" fill="#222"/>
+  <!-- Socket holes -->
+  <rect x="238" y="284" width="6" height="12" rx="2" fill="#444"/>
+  <rect x="252" y="284" width="6" height="12" rx="2" fill="#444"/>
+
+  <!-- Spark effect -->
+  <path d="M268 148 L275 135 L270 140 L278 128" stroke="#F97316" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+</svg>

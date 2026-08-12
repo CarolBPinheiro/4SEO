@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" fill="none">
+  <!-- Background elements (subtle rectangles) -->
+  <rect x="280" y="40" width="120" height="160" rx="8" fill="#1a1a1a" opacity="0.5"/>
+  <rect x="320" y="60" width="120" height="160" rx="8" fill="#1a1a1a" opacity="0.3"/>
+
+  <!-- Ground shadow -->
+  <ellipse cx="250" cy="370" rx="130" ry="16" fill="#1a1a1a"/>
+
+  <!-- Person -->
+  <circle cx="200" cy="95" r="24" fill="#e5e5e5"/>
+  <!-- Hair -->
+  <path d="M178 88 Q178 68 200 65 Q222 68 222 88" fill="#333"/>
+  <circle cx="205" cy="70" r="8" fill="#333"/>
+  <!-- Body (dark shirt) -->
+  <rect x="184" y="119" width="32" height="55" rx="12" fill="#333"/>
+  <!-- Left arm (holding clock) -->
+  <path d="M184 132 L150 145 L140 148" stroke="#e5e5e5" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- Right arm (leaning) -->
+  <path d="M216 132 L260 170" stroke="#333" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- Legs (orange pants) -->
+  <rect x="188" y="170" width="12" height="70" rx="5" fill="#F97316"/>
+  <rect x="204" y="170" width="12" height="70" rx="5" fill="#F97316"/>
+  <!-- Shoes -->
+  <ellipse cx="194" cy="242" rx="11" ry="7" fill="#333"/>
+  <ellipse cx="210" cy="242" rx="11" ry="7" fill="#333"/>
+
+  <!-- Clock (held by person) -->
+  <circle cx="130" cy="120" r="36" fill="white" stroke="#F97316" stroke-width="3"/>
+  <circle cx="130" cy="120" r="30" fill="white"/>
+  <!-- Clock face marks -->
+  <line x1="130" y1="94" x2="130" y2="98" stroke="#333" stroke-width="2"/>
+  <line x1="130" y1="142" x2="130" y2="146" stroke="#333" stroke-width="2"/>
+  <line x1="104" y1="120" x2="108" y2="120" stroke="#333" stroke-width="2"/>
+  <line x1="152" y1="120" x2="156" y2="120" stroke="#333" stroke-width="2"/>
+  <!-- Clock hands -->
+  <line x1="130" y1="120" x2="130" y2="102" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="130" y1="120" x2="145" y2="125" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+  <!-- Clock center dot -->
+  <circle cx="130" cy="120" r="3" fill="#F97316"/>
+  <!-- Small decoration at top of clock -->
+  <path d="M122 86 Q130 78 138 86" stroke="#F97316" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Hourglass -->
+  <g transform="translate(270, 165)">
+    <!-- Top frame -->
+    <rect x="-2" y="0" width="64" height="8" rx="3" fill="#F97316"/>
+    <!-- Top glass -->
+    <path d="M6 8 L6 50 Q6 65 15 75 L30 90 L45 75 Q54 65 54 50 L54 8" fill="white" opacity="0.9"/>
+    <!-- Sand in top -->
+    <path d="M20 40 Q30 55 30 65 L30 80 L30 65 Q30 55 40 40 L46 30 L14 30 Z" fill="#F97316" opacity="0.4"/>
+    <!-- Narrow middle -->
+    <circle cx="30" cy="90" r="3" fill="#F97316" opacity="0.5"/>
+    <!-- Bottom glass -->
+    <path d="M6 172 L6 120 Q6 105 15 95 L30 80 L45 95 Q54 105 54 120 L54 172" fill="white" opacity="0.9"/>
+    <!-- Sand in bottom -->
+    <path d="M10 172 L10 145 Q10 130 20 120 L30 110 L40 120 Q50 130 50 145 L50 172 Z" fill="#F97316" opacity="0.5"/>
+    <!-- Sand stream -->
+    <line x1="30" y1="80" x2="30" y2="110" stroke="#F97316" stroke-width="2" opacity="0.6"/>
+    <!-- Three dots decoration -->
+    <circle cx="30" cy="130" r="4" fill="#F97316" opacity="0.4"/>
+    <circle cx="30" cy="145" r="4" fill="#F97316" opacity="0.5"/>
+    <circle cx="30" cy="160" r="4" fill="#F97316" opacity="0.6"/>
+    <!-- Bottom frame -->
+    <rect x="-2" y="172" width="64" height="8" rx="3" fill="#F97316"/>
+  </g>
+
+  <!-- Plant decoration (right side, subtle) -->
+  <path d="M400 230 Q395 200 410 180" stroke="#555" stroke-width="2" fill="none"/>
+  <path d="M410 180 Q420 170 415 155" stroke="#555" stroke-width="2" fill="none"/>
+  <ellipse cx="415" cy="155" rx="8" ry="12" fill="#555" opacity="0.3"/>
+  <ellipse cx="406" cy="168" rx="6" ry="10" fill="#555" opacity="0.3"/>
+</svg>

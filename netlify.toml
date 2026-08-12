@@ -1,0 +1,23 @@
+# Netlify — domínio único https://4seo.app
+# Marketing (Next export) + App autenticado (Vite SPA) mesclados em deploy-out/
+
+[build]
+  command = "npm run build:go-live"
+  publish = "deploy-out"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Variáveis obrigatórias no painel Netlify (Site settings → Environment variables):
+# NEXT_PUBLIC_APP_URL=https://4seo.app
+# NEXT_PUBLIC_API_URL=https://<BACKEND_URL>
+# VITE_SUPABASE_URL=https://<projeto>.supabase.co
+# VITE_SUPABASE_PUBLISHABLE_KEY=<anon>
+# VITE_API_BASE_URL=https://<BACKEND_URL>/api
+# VITE_MARKETING_URL=https://4seo.app
+# VITE_AUTH_REDIRECT_URL=https://4seo.app/login
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
