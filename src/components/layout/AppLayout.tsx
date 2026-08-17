@@ -17,21 +17,60 @@ import {
   Lock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { daysRemaining, planDisplayName } from "@/lib/subscriptionAccess";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, requiresSubscription: false },
-  { to: "/termos", label: "Termos de Pesquisa", icon: TrendingUp, requiresSubscription: true },
-  { to: "/historico", label: "Histórico", icon: Hourglass, requiresSubscription: true },
-  { to: "/integracoes", label: "Integrações", icon: Puzzle, requiresSubscription: true },
-  { to: "/analise", label: "Análise", icon: ScanSearch, requiresSubscription: true },
-  { to: "/panorama", label: "Panorama SEO", icon: FileText, requiresSubscription: true },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutGrid,
+    access: "preview" as const,
+  },
+  {
+    to: "/termos",
+    label: "Termos de Pesquisa",
+    icon: TrendingUp,
+    access: "full" as const,
+  },
+  {
+    to: "/historico",
+    label: "Histórico",
+    icon: Hourglass,
+    access: "full" as const,
+  },
+  {
+    to: "/integracoes",
+    label: "Integrações",
+    icon: Puzzle,
+    access: "preview" as const,
+  },
+  {
+    to: "/analise",
+    label: "Análise",
+    icon: ScanSearch,
+    access: "preview" as const,
+  },
+  {
+    to: "/panorama",
+    label: "Panorama SEO",
+    icon: FileText,
+    access: "full" as const,
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { hasActiveSubscription, loading: billingLoading, subscribeUrl } = useBilling();
+  const {
+    hasFullAccess,
+    hasTrialAccess,
+    canUseAppPreview,
+    loading: billingLoading,
+    subscribeUrl,
+    subscription,
+  } = useBilling();
   const { store, connected } = useStore();
+  const trialDays = daysRemaining(subscription?.trialEndsAt);
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,21 +89,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 space-y-1 px-3 py-2">
           {navItems.map((item) => {
-            const locked =
-              item.requiresSubscription && !billingLoading && !hasActiveSubscription;
+            const allowed =
+              item.access === "preview"
+                ? canUseAppPreview
+                : hasFullAccess;
+            const locked = !billingLoading && !allowed;
 
             if (locked) {
+              const upgradeHref = hasTrialAccess ? subscribeUrl : "/trial";
               return (
-                <a
+                <button
                   key={item.to}
-                  href={subscribeUrl}
-                  title="Requer assinatura ativa"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground/55 transition-all hover:bg-muted/30"
+                  type="button"
+                  title={
+                    hasTrialAccess
+                      ? "Disponível na assinatura paga"
+                      : "Inicie a avaliação ou assine"
+                  }
+                  onClick={() => {
+                    if (upgradeHref.startsWith("http") || upgradeHref.includes("#")) {
+                      window.location.assign(upgradeHref);
+                    } else {
+                      navigate(upgradeHref);
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground/55 transition-all hover:bg-muted/30"
                 >
                   <item.icon className="h-[18px] w-[18px]" />
                   <span className="flex-1">{item.label}</span>
                   <Lock className="h-3.5 w-3.5 opacity-70" aria-hidden />
-                </a>
+                </button>
               );
             }
 
@@ -120,34 +174,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                {hasActiveSubscription
+                {canUseAppPreview
                   ? connected
                     ? store?.name || "Loja"
                     : "Loja não conectada"
                   : "Conta sem assinatura"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {hasActiveSubscription
+                {canUseAppPreview
                   ? connected
                     ? store?.url
-                    : "Conecte sua loja"
-                  : "Recursos bloqueados até ativar o plano"}
+                    : hasTrialAccess
+                      ? `Avaliação ${planDisplayName(subscription?.planId)} · ${trialDays ?? 7}d · conecte sua loja`
+                      : "Conecte sua loja"
+                  : "Inicie a avaliação gratuita ou assine"}
               </p>
             </div>
           </div>
 
-          {hasActiveSubscription ? (
-            connected ? (
-              <Badge className="gap-1.5 rounded-lg border-green-500 bg-green-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-600">
-                <CheckCircle className="h-4 w-4" />
-                Conectada
-              </Badge>
-            ) : (
-              <Badge className="gap-1.5 rounded-lg border-red-500/40 bg-red-500/20 px-4 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/25">
-                <XCircle className="h-4 w-4" />
-                Desconectada
-              </Badge>
-            )
+          {canUseAppPreview ? (
+            <div className="flex items-center gap-2">
+              {hasTrialAccess ? (
+                <Badge className="gap-1.5 rounded-lg border-primary/40 bg-primary/15 px-3 py-1.5 text-sm font-medium text-primary">
+                  Trial {trialDays ?? 7}d
+                </Badge>
+              ) : null}
+              {connected ? (
+                <Badge className="gap-1.5 rounded-lg border-green-500 bg-green-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  Conectada
+                </Badge>
+              ) : (
+                <Badge className="gap-1.5 rounded-lg border-red-500/40 bg-red-500/20 px-4 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/25">
+                  <XCircle className="h-4 w-4" />
+                  Desconectada
+                </Badge>
+              )}
+            </div>
           ) : (
             <Badge className="gap-1.5 rounded-lg border-primary/40 bg-primary/15 px-4 py-1.5 text-sm font-medium text-primary">
               <Lock className="h-4 w-4" />

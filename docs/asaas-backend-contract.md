@@ -10,7 +10,7 @@ Este frontend (Next.js) **não** integra a API Asaas. Toda comunicação com o A
 
 Schema SQL: `supabase/billing.sql` (aplicar no Supabase SQL Editor).
 
-Configure no frontend: `NEXT_PUBLIC_API_URL=http://localhost:8000` (`.env.local`).
+Configure no frontend: `NEXT_PUBLIC_API_URL=http://localhost:8000` (`.env.local`). Produção: `https://api.4seo.app` (sem `/api`).
 
 Documentação oficial: [https://docs.asaas.com/](https://docs.asaas.com/)
 

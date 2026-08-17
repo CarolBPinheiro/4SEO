@@ -12,6 +12,7 @@ import SiteForm from "@/components/seo/SiteForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useBilling } from "@/contexts/BillingContext";
 import {
   FileSearch,
   AlertTriangle,
@@ -649,6 +650,7 @@ function DisconnectedAnalise() {
    ═══════════════════════════════════════════════ */
 export default function Analise() {
   const { connected, store, refreshStatus } = useStore();
+  const { loading: billingLoading } = useBilling();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Handle OAuth callback params (?connected=true&store_id=X&store_name=Y)
@@ -661,6 +663,14 @@ export default function Analise() {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, refreshStatus, setSearchParams]);
+
+  if (billingLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (connected && store?.platform === "nuvemshop") {
     const storeId = store.storeId || store.url.replace(/^https?:\/\//, "").replace(/\/$/, "");

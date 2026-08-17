@@ -1,10 +1,10 @@
 # Go-live 4SEO — Inventário de ambiente
 
-Domínio único: `https://4seo.app`  
-Backend: Render (`BACKEND_URL`)  
+Domínios: `https://4seo.app` (Netlify) · `https://api.4seo.app` (Render)  
+Runbook de DNS/painéis: [DOMAINS.md](./DOMAINS.md)  
 Billing: Sandbox primeiro → depois Produção
 
-## Backend (Render) — ver [backend/.env.production.example](../backend/.env.production.example)
+## Backend (Render) — ver [backend/.env.production.example](../../backend/.env.production.example)
 
 | Variável | Prod | Notas |
 |---|---|---|
@@ -12,8 +12,9 @@ Billing: Sandbox primeiro → depois Produção
 | `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_KEY` | obrigatório | |
 | `OPENAI_API_KEY` | obrigatório p/ propostas | |
 | `FRONTEND_URL` | `https://4seo.app` | OAuth return |
-| `BACKEND_URL` | URL pública Render | OAuth + webhooks |
-| `CORS_ORIGINS` | `https://4seo.app,https://www.4seo.app` | |
+| `BACKEND_URL` | `https://api.4seo.app` | OAuth + webhooks (não use `onrender.com` depois do custom domain) |
+| `CORS_ORIGINS` | `https://4seo.app,https://www.4seo.app` | Origens do browser; não incluir `api.4seo.app` |
+| `GSC_REDIRECT_URI` | `https://api.4seo.app/api/gsc/callback` | Igual ao Google Cloud Console |
 | `NUVEMSHOP_APP_ID` / `CLIENT_SECRET` | se integrar Nuvemshop | |
 | `SHOPIFY_API_KEY` / `SECRET` | se integrar Shopify | |
 | `LOJAINTEGRADA_APP_KEY` | se tiver chave de app LI | senão LI fora do go-live |
@@ -24,17 +25,21 @@ Billing: Sandbox primeiro → depois Produção
 
 VTEX: sem env (credenciais na UI).
 
+URL nativa (transição): `https://fourseo-backend.onrender.com`
+
 ## Frontend (Netlify) — build `npm run build:go-live`
 
 | Variável | Valor |
 |---|---|
 | `NEXT_PUBLIC_APP_URL` | `https://4seo.app` |
-| `NEXT_PUBLIC_API_URL` | `https://<BACKEND_URL>` (sem `/api`) |
+| `NEXT_PUBLIC_API_URL` | `https://api.4seo.app` (sem `/api`) |
 | `VITE_SUPABASE_URL` | mesmo projeto Supabase |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | anon |
-| `VITE_API_BASE_URL` | `https://<BACKEND_URL>/api` |
+| `VITE_API_BASE_URL` | `https://api.4seo.app/api` |
 | `VITE_MARKETING_URL` | `https://4seo.app` |
 | `VITE_AUTH_REDIRECT_URL` | `https://4seo.app/login` |
+
+Não existe `VITE_API_URL`.
 
 ## Supabase Auth
 
@@ -52,4 +57,4 @@ $env:SUPABASE_ACCESS_TOKEN = "sbp_..."
 npm run apply:billing-schema
 ```
 
-Manual: [supabase/BILLING_APPLY.md](../supabase/BILLING_APPLY.md)
+Manual: [supabase/BILLING_APPLY.md](../../supabase/BILLING_APPLY.md)

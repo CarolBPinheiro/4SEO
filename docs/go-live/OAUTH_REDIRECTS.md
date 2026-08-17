@@ -1,21 +1,29 @@
 # Go-live — Redirects OAuth (produção)
 
-`BACKEND_URL` = URL pública do FastAPI no Render (HTTPS).  
+`BACKEND_URL` = `https://api.4seo.app`  
 `FRONTEND_URL` = `https://4seo.app`
+
+DNS e env: [DOMAINS.md](./DOMAINS.md).
 
 ## Nuvemshop (Partner portal)
 
-1. Redirect URI: `{BACKEND_URL}/api/nuvemshop/oauth-redirect`
+1. Redirect URI: `https://api.4seo.app/api/nuvemshop/oauth-redirect`
 2. Scopes no app: `read_products`, `write_products`, `read_content`, `write_content`, `read_categories`, `write_categories`
 3. Env Render: `NUVEMSHOP_APP_ID`, `NUVEMSHOP_CLIENT_SECRET`
 4. Aceite: Integrações → Nuvemshop → autorizar → volta para `https://4seo.app/analise`
 
 ## Shopify (Partners / Dev Dashboard)
 
-1. Allowed redirection URL: `{BACKEND_URL}/api/shopify/oauth-redirect`
+1. Allowed redirection URL: `https://api.4seo.app/api/shopify/oauth-redirect`
 2. Scopes: `write_products,write_content`
 3. Env: `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`
 4. Aceite: Integrações → Shopify → autorizar → `https://4seo.app/analise`
+
+## Google Search Console
+
+1. Authorized redirect URI: `https://api.4seo.app/api/gsc/callback`
+2. Env Render: `GSC_CLIENT_ID`, `GSC_CLIENT_SECRET`, `GSC_REDIRECT_URI` (mesmo valor)
+3. Aceite: Integrações → GSC → volta para `https://4seo.app/integracoes?gsc=connected`
 
 ## Loja Integrada
 
@@ -29,7 +37,7 @@
 ## Checklist rápido
 
 - [ ] `FRONTEND_URL=https://4seo.app` no Render (Save and deploy)
-- [ ] `BACKEND_URL` HTTPS correto no Render e nos portais
+- [ ] `BACKEND_URL=https://api.4seo.app` no Render e nos portais
 - [ ] Redirects cadastrados idênticos (incluindo `/api/...`)
 - [ ] Teste Nuvemshop e/ou Shopify com loja de teste
 - [ ] Aplicar 1 proposta + rollback

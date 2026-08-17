@@ -2,15 +2,15 @@
 
 Este documento descreve como o 4SEO é publicado em produção e como reproduzir o ambiente do zero.
 
-> **Go-live operacional (integrações + billing):** use a pasta [docs/go-live/](./go-live/) — inventário de env, OAuth, Asaas Sandbox→Prod e checklist final.
+> **Go-live operacional (integrações + billing):** use a pasta [docs/go-live/](./go-live/) — [domínios](./go-live/DOMAINS.md), inventário de env, OAuth, Asaas Sandbox→Prod e checklist final.
 
-> **Nunca** versione ou compartilhe valores reais de chaves. Todos os segredos abaixo aparecem como marcadores (`<...>`). O arquivo `.gitignore` do projeto já exclui `.env` e `.env.*`.
+> **Nunca** versione ou compartilhe valores reais de chaves. Todos os segredos abaixo aparecem como marcadores (`<...>`). O arquivo `.gitignore` do projeto já exclui `.env` e `.env.*` (exceto `.env.example` e `.env.production.example`).
 
 ---
 
 ## 1. Topologia de produção
 
-A aplicação em produção é composta por **três serviços**, domínio único `https://4seo.app`:
+A aplicação em produção é composta por **três serviços**. O usuário vê só `https://4seo.app`; a API fica em `https://api.4seo.app`:
 
 | Camada | Serviço | Conteúdo | Origem |
 |---|---|---|---|
@@ -29,9 +29,9 @@ Rotas de marketing (`/`, `/checkout/*`, `/sobre`) vêm do Next; rotas do produto
         +-------------------------+--------------------------+
         |                         |                          |
         v                         v                          v
-  Netlify (CDN)         Supabase Auth (SDK)         Render (API FastAPI)
-  Next + Vite SPA       login, cadastro,            Authorization: Bearer <JWT>
-  (deploy-out/)         refresh de sessão                     |
+  Netlify (CDN)         Supabase Auth (SDK)      api.4seo.app → Render
+  Next + Vite SPA       login, cadastro,            FastAPI /api/*
+  (deploy-out/)         refresh de sessão           Authorization: Bearer <JWT>
                                   ^                           |
                                   |                           v
                                   |                  Supabase REST (PostgREST)
@@ -39,11 +39,11 @@ Rotas de marketing (`/`, `/checkout/*`, `/sobre`) vêm do Next; rotas do produto
                                                        OpenAI, SearchAPI.io,
                                                        Google Search Console,
                                                        Shopify / Nuvemshop /
-                                                       VTEX / Loja Integrada
+                                                       VTEX / Loja Integrada / Asaas
 ```
 
 Pontos importantes dessa topologia:
-- **Domínio único** `https://4seo.app` para marketing e app.
+- **Frontend** `https://4seo.app` (Netlify). **API** `https://api.4seo.app` (Render). Runbook: [docs/go-live/DOMAINS.md](./go-live/DOMAINS.md).
 - Runbook completo: [docs/go-live/](./go-live/).
 - Billing schema: [supabase/BILLING_APPLY.md](../supabase/BILLING_APPLY.md).
 
@@ -96,7 +96,7 @@ O **Root Directory precisa ser `backend`**: tanto o `requirements.txt` quanto o 
 
 A versão do Python está fixada em dois lugares consistentes entre si: `PYTHON_VERSION=3.11` no `render.yaml` e `python-3.11.0` em `backend/runtime.txt`.
 
-A URL pública gerada pelo Render segue o padrão `https://<nome-do-servico>.onrender.com` — com o `name` atual do `render.yaml`, `https://4seo-backend.onrender.com` (ajuste se o serviço já existir com outro nome). Guarde essa URL: ela é usada em `VITE_API_BASE_URL`, `BACKEND_URL`, `NEXT_PUBLIC_API_URL` e redirects OAuth.
+O serviço publicado chama-se `4seo-backend`. URL nativa: `https://fourseo-backend.onrender.com`. URL canônica: `https://api.4seo.app` (Custom Domain + CNAME). Use a canônica em `VITE_API_BASE_URL`, `BACKEND_URL`, `NEXT_PUBLIC_API_URL` e redirects OAuth assim que o TLS estiver verde.
 
 ### 2.2 Variáveis de ambiente
 
@@ -112,7 +112,7 @@ Configure em **Environment → Environment Variables**.
 | `SUPABASE_JWT_SECRET` | `auth.py` | **Condicional.** Segredo JWT legado, usado apenas na verificação de tokens `HS256`. Projetos Supabase atuais assinam com `ES256` e são validados via JWKS, dispensando esta variável — deixe-a vazia nesse caso. |
 | `OPENAI_API_KEY` | `llm_optimizer.py` e os otimizadores de cada plataforma | Sem ela, `GET /api/info` retorna `ai.enabled: false` e as propostas de otimização não são geradas. |
 | `FRONTEND_URL` | `main.py` (callbacks OAuth) | `https://4seo.app`. Destino do redirect após o OAuth do GSC (`/integracoes?gsc=connected`) e da Nuvemshop (`/analise`). O padrão do código é `localhost`, então **é obrigatória em produção**. |
-| `BACKEND_URL` | `main.py` (`/api/nuvemshop/auth`) | URL pública do próprio serviço no Render. Compõe o `redirect_uri` `<BACKEND_URL>/api/nuvemshop/oauth-redirect`. A Nuvemshop só aceita HTTPS (ou `localhost`). |
+| `BACKEND_URL` | `main.py` (`/api/nuvemshop/auth`) | `https://api.4seo.app`. Compõe o `redirect_uri` `https://api.4seo.app/api/nuvemshop/oauth-redirect`. A Nuvemshop só aceita HTTPS (ou `localhost`). |
 
 #### Condicionais — por integração
 
@@ -122,14 +122,14 @@ Configure em **Environment → Environment Variables**.
 | `NUVEMSHOP_CLIENT_SECRET` | OAuth da Nuvemshop | Idem acima. Recomenda-se manter apenas no ambiente, nunca no código. |
 | `GSC_CLIENT_ID` | Google Search Console | `GET /api/gsc/auth-url` responde `400`. |
 | `GSC_CLIENT_SECRET` | Google Search Console | A troca do código por token falha. |
-| `GSC_REDIRECT_URI` | Google Search Console | Deve ser `<BACKEND_URL>/api/gsc/callback` e estar cadastrada como URI de redirecionamento autorizada no Google Cloud Console (credencial OAuth 2.0 do tipo *Web application*, com a Search Console API habilitada). O padrão do código aponta para `localhost`. |
+| `GSC_REDIRECT_URI` | Google Search Console | `https://api.4seo.app/api/gsc/callback`, idêntica à URI no Google Cloud Console. O padrão do código aponta para `localhost`. |
 | `SEARCHAPI_KEY` | Enriquecimento com dados de SERP (SearchAPI.io) | As consultas de SERP são puladas e os recursos que dependem delas retornam vazio com aviso em log. |
 | `LOJAINTEGRADA_APP_KEY` | Loja Integrada | `POST /api/lojaintegrada/connect` responde `503` ("não configurada no servidor"). |
 | `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET` | OAuth Shopify | Sem elas, o fluxo OAuth do app 4SEO não inicia. |
 
 **VTEX** não exige variáveis de ambiente (conta + App Key + App Token na UI).  
 **Loja Integrada** exige `LOJAINTEGRADA_APP_KEY` no servidor; o lojista cola só a Chave de API da loja na UI.  
-**Shopify OAuth** exige `SHOPIFY_API_KEY` e `SHOPIFY_API_SECRET` no backend (app no Partners); o lojista só informa o nome da loja. Cadastre `{BACKEND_URL}/api/shopify/oauth-redirect` como Allowed redirection URL.
+**Shopify OAuth** exige `SHOPIFY_API_KEY` e `SHOPIFY_API_SECRET` no backend (app no Partners); o lojista só informa o nome da loja. Cadastre `https://api.4seo.app/api/shopify/oauth-redirect` como Allowed redirection URL.
 
 #### Opcionais — ajuste fino
 
@@ -178,7 +178,7 @@ Só um novo deploy materializa o ambiente atualizado. Vale a mesma regra para re
 
 ## 3. Frontend — Netlify
 
-Domínio único `https://4seo.app`: marketing (Next export) + app autenticado (Vite SPA), mesclados por `npm run build:go-live` em `deploy-out/`.
+Frontend em `https://4seo.app`: marketing (Next export) + app autenticado (Vite SPA), mesclados por `npm run build:go-live` em `deploy-out/`.
 
 Configuração versionada em [netlify.toml](../netlify.toml). No painel, confirme que o site usa o arquivo do repositório (ou espelhe os valores abaixo).
 
@@ -209,8 +209,8 @@ Configure em **Site configuration → Environment variables** (ver também `.env
 | Variável | Obrigatória | Valor de produção | Uso no código |
 |---|---|---|---|
 | `NEXT_PUBLIC_APP_URL` | Sim | `https://4seo.app` | Landing → login |
-| `NEXT_PUBLIC_API_URL` | Sim | `https://<backend>.onrender.com` | Checkout Asaas |
-| `VITE_API_BASE_URL` | Sim | `https://<backend>.onrender.com/api` | `src/lib/apiClient.ts`. **O sufixo `/api` é obrigatório**. |
+| `NEXT_PUBLIC_API_URL` | Sim | `https://api.4seo.app` | Checkout Asaas (`/billing/checkout`). **Sem** `/api`. |
+| `VITE_API_BASE_URL` | Sim | `https://api.4seo.app/api` | `src/lib/apiClient.ts`. **O sufixo `/api` é obrigatório**. |
 | `VITE_SUPABASE_URL` | Sim | `https://<projeto>.supabase.co` | `src/lib/supabase.ts` |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim | chave `anon`/`publishable` do projeto | `src/lib/supabase.ts` |
 | `VITE_MARKETING_URL` | Sim | `https://4seo.app` | Redirect `/` do Vite |
@@ -326,15 +326,15 @@ Execute na ordem. Cada bloco valida um elo diferente entre os três serviços.
 
 ### 5.1 Backend isolado
 
-- [ ] `GET https://<backend>.onrender.com/api/health` retorna `{"status":"ok","mode":"supabase","timestamp":"..."}`.
-- [ ] `GET https://<backend>.onrender.com/api/info` retorna `ai.enabled: true` e o `model` esperado. Se vier `false`, `OPENAI_API_KEY` não chegou ao processo — reveja a seção 2.3 (*Save and deploy*, não *Restart*).
+- [ ] `GET https://api.4seo.app/api/health` retorna `{"status":"ok","mode":"supabase","timestamp":"..."}`.
+- [ ] `GET https://api.4seo.app/api/info` retorna `ai.enabled: true` e o `model` esperado. Se vier `false`, `OPENAI_API_KEY` não chegou ao processo — reveja a seção 2.3 (*Save and deploy*, não *Restart*).
 - [ ] Nos **Logs** do Render, o deploy terminou com o Uvicorn ouvindo na porta e sem stack traces na inicialização.
 
 ### 5.2 Frontend isolado
 
 - [ ] `https://4seo.app` carrega a landing page com HTTPS válido.
 - [ ] Acessar uma rota profunda diretamente (ex.: `https://4seo.app/login`, com F5) devolve a aplicação, e não um 404 — valida o `_redirects` publicado.
-- [ ] No DevTools → **Network**, as chamadas de API saem para o domínio `onrender.com` (e não para `4seo.app/api`). Se estiverem indo para `4seo.app/api`, `VITE_API_BASE_URL` não foi embutida — refaça o deploy com limpeza de cache (seção 3.4).
+- [ ] No DevTools → **Network**, as chamadas de API saem para `api.4seo.app` (e não para `4seo.app/api`). Se estiverem indo para `4seo.app/api`, `VITE_API_BASE_URL` não foi embutida — refaça o deploy com limpeza de cache (seção 3.4).
 - [ ] Nenhuma requisição retorna erro de CORS no console.
 
 ### 5.3 Cadastro e login (Netlify ↔ Supabase)
@@ -356,7 +356,7 @@ Execute na ordem. Cada bloco valida um elo diferente entre os três serviços.
 Escolha ao menos uma plataforma e conclua o fluxo em **Integrações**:
 
 - [ ] **Shopify / VTEX / Loja Integrada** (credenciais na UI, exceto OAuth Shopify/Nuvemshop): a conexão retorna sucesso e o nome da loja.
-- [ ] **Nuvemshop** (OAuth): o botão leva ao consentimento na Nuvemshop e, ao autorizar, o navegador volta para `https://4seo.app/analise` com a loja conectada. Esse fluxo valida `BACKEND_URL` (a Nuvemshop redireciona para `<BACKEND_URL>/api/nuvemshop/oauth-redirect`) e `FRONTEND_URL` (destino final). Um retorno para `localhost` significa que uma dessas variáveis ficou com o valor padrão.
+- [ ] **Nuvemshop** (OAuth): o botão leva ao consentimento na Nuvemshop e, ao autorizar, o navegador volta para `https://4seo.app/analise` com a loja conectada. Esse fluxo valida `BACKEND_URL` (a Nuvemshop redireciona para `https://api.4seo.app/api/nuvemshop/oauth-redirect`) e `FRONTEND_URL` (destino final). Um retorno para `localhost` significa que uma dessas variáveis ficou com o valor padrão.
 - [ ] No Supabase (**Table Editor**), confirme que foram criadas: uma linha em `user_integrations` e uma em `sites`, ambas com o `user_id` correto.
 
 ### 5.6 Executar um scan e aplicar uma otimização

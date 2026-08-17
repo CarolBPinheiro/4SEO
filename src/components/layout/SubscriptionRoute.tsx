@@ -1,16 +1,18 @@
 import { Navigate } from "react-router-dom";
 import { useBilling } from "@/contexts/BillingContext";
 
-/**
- * Rotas que exigem assinatura ativa (categorias / recursos da plataforma).
- * Conta autenticada sem assinatura é redirecionada ao dashboard zerado.
- */
-export default function SubscriptionRoute({
-  children,
-}: {
+type Props = {
   children: React.ReactNode;
-}) {
-  const { hasActiveSubscription, loading } = useBilling();
+  /** full = assinatura paga; trial = full ou avaliação */
+  level?: "full" | "trial";
+};
+
+/**
+ * full → recursos pagos (Termos, Histórico, Panorama…)
+ * trial → Dashboard, Análise e Integrações (pago ou avaliação)
+ */
+export default function SubscriptionRoute({ children, level = "full" }: Props) {
+  const { hasFullAccess, canUseAppPreview, loading } = useBilling();
 
   if (loading) {
     return (
@@ -20,8 +22,21 @@ export default function SubscriptionRoute({
     );
   }
 
-  if (!hasActiveSubscription) {
-    return <Navigate to="/dashboard" replace state={{ subscriptionRequired: true }} />;
+  if (level === "trial") {
+    if (!canUseAppPreview) {
+      return <Navigate to="/trial" replace />;
+    }
+    return <>{children}</>;
+  }
+
+  if (!hasFullAccess) {
+    return (
+      <Navigate
+        to={canUseAppPreview ? "/dashboard" : "/trial"}
+        replace
+        state={{ subscriptionRequired: true }}
+      />
+    );
   }
 
   return <>{children}</>;

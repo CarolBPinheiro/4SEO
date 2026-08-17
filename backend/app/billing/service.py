@@ -24,6 +24,7 @@ from app.billing.schemas import CreateCheckoutResponse, SubscriptionResponse
 logger = logging.getLogger(__name__)
 
 MINUTES_TO_EXPIRE = 60
+TRIAL_DAYS = 7
 
 
 def _app_public_url() -> str:
@@ -98,9 +99,12 @@ class BillingService:
         except asaas_client.AsaasConfigError as exc:
             raise BillingUnavailableError(str(exc)) from exc
         except asaas_client.AsaasApiError as exc:
+            if getattr(exc, "asaas_code", None) == "invalid_environment":
+                raise BillingUnavailableError(str(exc)) from exc
             status = exc.status_code or 502
             if status >= 500 or status == 429:
                 raise BillingUpstreamError(str(exc)) from exc
+            # Erros de negócio Asaas (payload / conta) — mensagem pública segura
             raise BillingUpstreamError(str(exc), status_code=502) from exc
 
         checkout_id = str(asaas_response.get("id") or "").strip()
@@ -139,10 +143,12 @@ class BillingService:
             expiresAt=expires_at,
         )
 
-    async def get_subscription_for_user(self, user_id: str) -> SubscriptionResponse:
-        row = await self.repo.get_active_subscription_for_user(user_id)
-        if not row:
-            return SubscriptionResponse(status="none")
+    def _subscription_response_from_row(
+        self,
+        row: Dict[str, Any],
+        *,
+        access_level: str,
+    ) -> SubscriptionResponse:
         return SubscriptionResponse(
             status=row.get("status") or "none",
             planId=row.get("plan_id"),
@@ -150,8 +156,72 @@ class BillingService:
             asaasSubscriptionId=row.get("asaas_subscription_id"),
             asaasCustomerId=row.get("asaas_customer_id"),
             currentPeriodEnd=row.get("current_period_end"),
+            trialEndsAt=row.get("trial_ends_at"),
+            accessLevel=access_level,
             updatedAt=row.get("updated_at"),
         )
+
+    async def get_subscription_for_user(self, user_id: str) -> SubscriptionResponse:
+        """
+        Fonte de verdade para UX/Minha Conta.
+        accessLevel: full (pago) | trial (7 dias corridos) | none.
+        Trial expirado (trial_ends_at no passado) vira status expired + access none.
+        """
+        entitled = await self.repo.get_active_subscription_for_user(user_id)
+        if entitled:
+            return self._subscription_response_from_row(entitled, access_level="full")
+
+        trial = await self.repo.get_valid_trial_for_user(user_id)
+        if trial:
+            return self._subscription_response_from_row(trial, access_level="trial")
+
+        latest = await self.repo.get_latest_subscription_for_user(user_id)
+        if latest:
+            # Trial expirado ainda listado como trialing → marca expired (bloqueio)
+            if latest.get("status") == "trialing" and latest.get("id"):
+                await self.repo.expire_trial_subscription(str(latest["id"]))
+                latest = {**latest, "status": "expired"}
+            return self._subscription_response_from_row(latest, access_level="none")
+
+        pending_checkout = await self.repo.get_pending_checkout_for_user(user_id)
+        if pending_checkout:
+            return SubscriptionResponse(
+                status="pending",
+                planId=pending_checkout.get("plan_id"),
+                billingCycle=pending_checkout.get("billing_cycle"),
+                accessLevel="none",
+                updatedAt=pending_checkout.get("updated_at"),
+            )
+
+        return SubscriptionResponse(status="none", accessLevel="none")
+
+    async def start_trial(self, *, user_id: str, plan_id: str) -> SubscriptionResponse:
+        """Inicia trial de 7 dias corridos sem cartão (1x por usuário)."""
+        if not is_plan_id(plan_id):
+            raise BillingValidationError("Plano inválido.")
+
+        entitled = await self.repo.get_active_subscription_for_user(user_id)
+        if entitled:
+            raise BillingValidationError("Você já possui uma assinatura ativa.")
+
+        active_trial = await self.repo.get_valid_trial_for_user(user_id)
+        if active_trial:
+            return self._subscription_response_from_row(
+                active_trial, access_level="trial"
+            )
+
+        if await self.repo.user_has_used_trial(user_id):
+            raise BillingValidationError(
+                "A avaliação gratuita já foi utilizada nesta conta. "
+                "Escolha um plano para continuar."
+            )
+
+        row = await self.repo.create_trial_subscription(
+            user_id=user_id,
+            plan_id=plan_id,
+            trial_days=TRIAL_DAYS,
+        )
+        return self._subscription_response_from_row(row, access_level="trial")
 
     async def claim_checkout_for_user(
         self, *, user_id: str, external_reference: str
@@ -288,6 +358,13 @@ class BillingService:
             asaas_subscription_id=sub_id,
             status="active",
         )
+
+        # Se o usuário estava em trial, encerra a avaliação ao ativar o pago
+        user_id = local.get("user_id")
+        if user_id:
+            trial = await self.repo.get_valid_trial_for_user(str(user_id))
+            if trial and trial.get("id"):
+                await self.repo.expire_trial_subscription(str(trial["id"]))
 
     async def _handle_subscription_event(
         self,

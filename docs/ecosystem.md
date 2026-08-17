@@ -18,6 +18,6 @@ Raiz: `C:\Users\Admin\Documents\Projetos 4Scale\4SEO`
 ## Pendências conhecidas
 
 - Configurar `ASAAS_API_KEY` / `ASAAS_WEBHOOK_TOKEN` no `backend/.env` e aplicar `supabase/billing.sql`
-- Configurar webhook Asaas → `POST {BACKEND_URL}/webhooks/asaas`
+- Configurar webhook Asaas → `POST https://api.4seo.app/webhooks/asaas`
 - Rotacionar secrets Nuvemshop se já vazaram historicamente
 - Typebot default em host de terceiros (configurável por env)

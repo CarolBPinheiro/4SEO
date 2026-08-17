@@ -24,8 +24,9 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@billing-plans": ["./lib/billing/plans.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "lib/billing/plans.ts"]
 }

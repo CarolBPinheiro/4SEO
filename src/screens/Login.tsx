@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, UserPlus, ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import {
+  LogIn,
+  UserPlus,
+  ArrowLeft,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMarketingUrl } from "@/lib/site";
 import {
@@ -11,12 +19,15 @@ import {
   persistBillingRef,
   readPendingBillingRef,
 } from "@/lib/billingClaim";
+import { fetchSubscription } from "@/contexts/BillingContext";
+import { resolvePostAuthPath } from "@/lib/subscriptionAccess";
 
 type AuthMode = "login" | "register" | "forgot";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, signUp, resetPassword, user, loading: authLoading } = useAuth();
+  const { signIn, signUp, resetPassword, signOut, user, loading: authLoading } =
+    useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,38 +35,99 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [sessionCheck, setSessionCheck] = useState(true);
+  const hasBillingRef = useMemo(() => !!readPendingBillingRef(), []);
+  /** Evita resetar a sessão logo após login/cadastro bem-sucedido. */
+  const continueAfterAuthRef = useRef(false);
 
   useEffect(() => {
     const ref = readPendingBillingRef();
     if (ref) {
       persistBillingRef(ref);
+      setMode("register");
     }
   }, []);
 
   useEffect(() => {
-    if (!user || authLoading) {
+    if (authLoading) {
       return;
     }
+
+    if (!user) {
+      setSessionCheck(false);
+      return;
+    }
+
     let cancelled = false;
     void (async () => {
+      // Fluxo Dropbox: cadastro/login acabou de autenticar → seguir para /trial ou app
+      if (continueAfterAuthRef.current) {
+        try {
+          await claimPendingCheckout();
+        } catch {
+          // best-effort
+        }
+        let level: string | null = "none";
+        try {
+          const sub = await fetchSubscription();
+          level = sub.accessLevel || "none";
+        } catch {
+          level = "none";
+        }
+        if (!cancelled) {
+          navigate(resolvePostAuthPath(level), { replace: true });
+        }
+        return;
+      }
+
+      // Voltou à página inicial (Minha Conta /login) com sessão antiga:
+      // - com trial/assinatura → dashboard
+      // - sem trial → encerra sessão e mostra login limpo
       try {
         await claimPendingCheckout();
       } catch {
         // best-effort
       }
-      if (!cancelled) {
+      let level: string | null = "none";
+      try {
+        const sub = await fetchSubscription();
+        level = sub.accessLevel || "none";
+      } catch {
+        level = "none";
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (level === "full" || level === "trial") {
         navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      await signOut();
+      if (!cancelled) {
+        setSessionCheck(false);
+        setMode("login");
+        setMessage("");
+        setError("");
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, signOut]);
 
-  if (user && !authLoading) {
+  const showSessionGate =
+    authLoading || (sessionCheck && !!user) || continueAfterAuthRef.current;
+
+  if (showSessionGate) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050506] text-sm text-zinc-400">
-        Preparando sua conta…
+        {continueAfterAuthRef.current
+          ? "Preparando sua conta…"
+          : "Carregando…"}
       </div>
     );
   }
@@ -64,19 +136,29 @@ export default function Login() {
     try {
       await claimPendingCheckout();
     } catch {
-      // Claim é best-effort; usuário ainda entra no app
+      // best-effort
     }
-    navigate("/dashboard");
+    let level: string | null = "none";
+    try {
+      const sub = await fetchSubscription();
+      level = sub.accessLevel || "none";
+    } catch {
+      level = "none";
+    }
+    navigate(resolvePostAuthPath(level), { replace: true });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    // Marca antes do signIn para o useEffect não fazer signOut da sessão nova
+    continueAfterAuthRef.current = true;
     const result = await signIn(email, password);
     setLoading(false);
     if (result.error) {
       setError(result.error);
+      continueAfterAuthRef.current = false;
     } else {
       await finishAuthAndClaim();
     }
@@ -85,18 +167,30 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setMessage("");
     setLoading(true);
+    continueAfterAuthRef.current = true;
     const result = await signUp(email, password);
     setLoading(false);
-    if (result.error) {
+
+    if (result.error && !result.sessionCreated) {
+      continueAfterAuthRef.current = false;
+      if (result.error.toLowerCase().includes("conta criada")) {
+        setMessage(result.error);
+        setMode("login");
+        return;
+      }
       setError(result.error);
-    } else {
-      setMessage(
-        "Conta criada com sucesso. Verifique seu e-mail para confirmar e faça login. " +
-          "Para usar os recursos da plataforma, é necessário uma assinatura ativa."
-      );
-      setMode("login");
+      return;
     }
+
+    if (result.error) {
+      continueAfterAuthRef.current = false;
+      setError(result.error);
+      return;
+    }
+
+    await finishAuthAndClaim();
   };
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -121,14 +215,16 @@ export default function Login() {
     mode === "login"
       ? "Olá, que bom ver você de volta!"
       : mode === "register"
-        ? "Crie sua conta na 4SEO"
+        ? "Comece sua jornada na 4SEO"
         : "Recupere o acesso";
 
   const subtitle =
     mode === "login"
-      ? "Acesse sua conta para acompanhar o SEO da sua loja."
+      ? "Entre na sua conta. O acesso aos recursos depende de uma assinatura ativa."
       : mode === "register"
-        ? "Qualquer pessoa pode criar uma conta. Os recursos da plataforma liberam com assinatura ativa."
+        ? hasBillingRef
+          ? "Finalize seu acesso para vincular o pagamento ao seu usuário."
+          : "Crie sua conta e escolha o plano de avaliação em seguida."
         : "Informe seu e-mail para receber o link de recuperação.";
 
   return (
@@ -141,11 +237,8 @@ export default function Login() {
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px]">
           <div className="mb-10 flex flex-col items-center text-center">
-            <p className="text-sm font-semibold tracking-[0.18em] text-[#ff8a3d] uppercase">
-              4SEO
-            </p>
-            <img src="/logo.png" alt="4SEO" className="mt-3 h-14 w-auto" />
-            <p className="mt-3 text-xs font-medium tracking-wide text-zinc-500 uppercase">
+            <img src="/logo.png" alt="4SEO" className="h-14 w-auto" />
+            <p className="mt-3 text-xs font-medium tracking-wide text-white uppercase">
               Minha Conta
             </p>
           </div>
@@ -309,12 +402,17 @@ export default function Login() {
 
                   <Button
                     type="submit"
-                    className="btn-gradient h-12 w-full rounded-xl font-semibold text-primary-foreground"
+                    className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.06] font-semibold text-white hover:bg-white/10"
                     size="lg"
                     disabled={loading}
+                    variant="ghost"
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    {loading ? "Criando..." : "Criar conta"}
+                    {loading
+                      ? "Criando..."
+                      : hasBillingRef
+                        ? "Criar conta e vincular assinatura"
+                        : "Continuar"}
                   </Button>
                 </form>
 
@@ -325,6 +423,7 @@ export default function Login() {
                     onClick={() => {
                       setMode("login");
                       setError("");
+                      setMessage("");
                     }}
                     className="font-semibold text-[#ff8a3d] hover:underline"
                   >

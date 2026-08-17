@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -28,9 +28,16 @@ class AsaasConfigError(RuntimeError):
 class AsaasApiError(RuntimeError):
     """Falha ao chamar a API Asaas."""
 
-    def __init__(self, message: str, *, status_code: Optional[int] = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        asaas_code: Optional[str] = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
+        self.asaas_code = asaas_code
 
 
 def _api_key() -> str:
@@ -44,6 +51,44 @@ def _base_url() -> str:
 
 def is_asaas_configured() -> bool:
     return bool(_api_key())
+
+
+def _safe_asaas_error_message(response: httpx.Response) -> tuple[str, Optional[str]]:
+    """Extrai mensagem pública do Asaas sem vazar payloads sensíveis."""
+    asaas_code: Optional[str] = None
+    try:
+        data = response.json()
+    except Exception:
+        return "Falha ao criar checkout no Asaas.", None
+
+    errors: List[Any] = []
+    if isinstance(data, dict):
+        raw_errors = data.get("errors")
+        if isinstance(raw_errors, list):
+            errors = raw_errors
+
+    descriptions: List[str] = []
+    for item in errors:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code") or "").strip()
+        desc = str(item.get("description") or "").strip()
+        if code and not asaas_code:
+            asaas_code = code
+        if desc:
+            descriptions.append(desc)
+
+    if asaas_code == "invalid_environment":
+        return (
+            "Chave Asaas incompatível com o ambiente configurado "
+            "(sandbox vs produção). Ajuste ASAAS_API_KEY e ASAAS_BASE_URL.",
+            asaas_code,
+        )
+
+    if descriptions:
+        return descriptions[0][:280], asaas_code
+
+    return "Falha ao criar checkout no Asaas.", asaas_code
 
 
 async def create_checkout(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,15 +126,17 @@ async def create_checkout(payload: Dict[str, Any]) -> Dict[str, Any]:
                 continue
 
             if response.status_code >= 400:
-                # Nunca logar access_token / payload completo com dados sensíveis
+                message, asaas_code = _safe_asaas_error_message(response)
                 logger.error(
-                    "Asaas checkout failed status=%s body_len=%s",
+                    "Asaas checkout failed status=%s code=%s body_len=%s",
                     response.status_code,
+                    asaas_code or "unknown",
                     len(response.text or ""),
                 )
                 raise AsaasApiError(
-                    "Falha ao criar checkout no Asaas.",
+                    message,
                     status_code=response.status_code,
+                    asaas_code=asaas_code,
                 )
 
             data = response.json()
@@ -97,6 +144,8 @@ async def create_checkout(payload: Dict[str, Any]) -> Dict[str, Any]:
                 raise AsaasApiError("Resposta inválida do Asaas.")
             return data
 
+        except AsaasApiError:
+            raise
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             last_error = exc
             if attempt >= MAX_ATTEMPTS:

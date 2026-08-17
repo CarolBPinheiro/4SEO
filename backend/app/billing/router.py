@@ -19,6 +19,7 @@ from app.billing.schemas import (
     ClaimCheckoutRequest,
     CreateCheckoutRequest,
     CreateCheckoutResponse,
+    StartTrialRequest,
 )
 from app.billing.service import (
     BillingService,
@@ -120,6 +121,34 @@ async def claim_checkout(
     except Exception:
         logger.exception("Erro inesperado em POST /billing/claim-checkout")
         return _error("Erro interno ao vincular checkout.", 500)
+
+
+@router.post("/billing/start-trial")
+async def start_trial(
+    body: StartTrialRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Inicia avaliação gratuita de 7 dias (sem cartão), 1x por conta."""
+    service = BillingService()
+    try:
+        result = await service.start_trial(
+            user_id=user["user_id"],
+            plan_id=body.planId,
+        )
+        return result.model_dump()
+    except BillingValidationError as exc:
+        return _error(str(exc), 400)
+    except Exception as exc:
+        logger.exception("Erro inesperado em POST /billing/start-trial")
+        detail = str(exc)
+        if "trial_ends_at" in detail or "trial_started_at" in detail:
+            return _error(
+                "Schema de trial não aplicado no banco. "
+                "Execute supabase/migrations/20260812190000_subscription_trial.sql "
+                "no SQL Editor do Supabase.",
+                503,
+            )
+        return _error("Erro interno ao iniciar avaliação.", 500)
 
 
 @router.post("/webhooks/asaas")

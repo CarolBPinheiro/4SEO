@@ -1,5 +1,5 @@
 # Go-live smoke checks (PowerShell)
-# Uso: .\scripts\go-live-smoke.ps1 -BackendUrl https://SEU.onrender.com -FrontendUrl https://4seo.app
+# Uso: .\scripts\go-live-smoke.ps1 -BackendUrl https://api.4seo.app -FrontendUrl https://4seo.app
 
 param(
   [Parameter(Mandatory = $true)][string]$BackendUrl,

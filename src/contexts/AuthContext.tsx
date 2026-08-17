@@ -11,7 +11,10 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error?: string; sessionCreated?: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
 }
@@ -94,15 +97,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: getAuthRedirectUrl(),
+        // Após confirmar e-mail (se exigido), volta ao app e o post-auth manda ao /trial
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
     if (error) return { error: error.message };
-    return {};
+
+    // Dropbox-like: se o Supabase já devolveu sessão, segue autenticado
+    if (data.session?.access_token) {
+      setToken(data.session.access_token);
+      return { sessionCreated: true as const };
+    }
+
+    // Sem sessão (ex.: confirmação de e-mail ligada) — tenta login imediato
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInError) {
+      return {
+        sessionCreated: false as const,
+        error:
+          "Conta criada. Confirme o e-mail enviado e faça login para escolher seu plano.",
+      };
+    }
+    if (signInData.session?.access_token) {
+      setToken(signInData.session.access_token);
+    }
+    return { sessionCreated: true as const };
   }, []);
 
   const signOut = useCallback(async () => {

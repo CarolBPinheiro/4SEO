@@ -10,8 +10,10 @@ import {
   Loader2,
   Sparkles,
   Lock,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { planDisplayName } from "@/lib/subscriptionAccess";
 
 // Donut chart SVG component
 function ScoreDonut({ score, size = 180 }: { score: number; size?: number }) {
@@ -303,12 +305,18 @@ interface DashboardDataV2 {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { connected } = useStore();
-  const { hasActiveSubscription, loading: billingLoading, subscribeUrl } = useBilling();
+  const {
+    canUseAppPreview,
+    isPendingPayment,
+    loading: billingLoading,
+    subscribeUrl,
+    subscription,
+  } = useBilling();
   const [data, setData] = useState<DashboardDataV2 | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchSummary = useCallback(async (refresh = false) => {
-    if (!connected || !hasActiveSubscription) return;
+    if (!connected || !canUseAppPreview) return;
     setLoading(true);
     try {
       const result = await api.dashboard.summary(refresh);
@@ -318,13 +326,13 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [connected, hasActiveSubscription]);
+  }, [connected, canUseAppPreview]);
 
   const [scanError, setScanError] = useState<string | null>(null);
 
   // Atualiza panorama: dispara scan via /api/scan e faz polling até o scan terminar
   const handleRefresh = useCallback(async () => {
-    if (!connected || !hasActiveSubscription) return;
+    if (!connected || !canUseAppPreview) return;
     setLoading(true);
     setScanError(null);
     try {
@@ -381,7 +389,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [connected, hasActiveSubscription, data?.last_scan?.completed_at, data?.total_pages_scanned]);
+  }, [connected, canUseAppPreview, data?.last_scan?.completed_at, data?.total_pages_scanned]);
 
   useEffect(() => {
     fetchSummary();
@@ -415,7 +423,7 @@ export default function Dashboard() {
   const [filtrosAtivos, setFiltrosAtivos] = useState<Set<string>>(new Set());
 
   const fetchOportunidades = useCallback(async () => {
-    if (!hasActiveSubscription) return;
+    if (!canUseAppPreview) return;
     try {
       const ativos = [...filtrosAtivos];
       const impactos = ativos.filter(f => IMPACTO_IDS.includes(f));
@@ -435,7 +443,7 @@ export default function Dashboard() {
     } catch {
       // API protegida — lista permanece vazia
     }
-  }, [filtrosAtivos, hasActiveSubscription]);
+  }, [filtrosAtivos, canUseAppPreview]);
 
   useEffect(() => {
     if (data?.connected) fetchOportunidades();
@@ -473,27 +481,71 @@ export default function Dashboard() {
     );
   }
 
-  if (!hasActiveSubscription) {
+  if (!canUseAppPreview) {
+    const status = subscription?.status || "none";
+    const planLabel = planDisplayName(subscription?.planId);
+    const periodEnd = subscription?.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd).toLocaleDateString("pt-BR")
+      : null;
+
+    const isCanceled =
+      status === "canceled" || status === "expired" || status === "inactive";
+
+    let title = "Sua conta está criada, mas nenhum plano está ativo.";
+    let description =
+      "Inicie a avaliação gratuita de 7 dias ou assine um plano para liberar a plataforma.";
+    let cta = "Escolher avaliação / plano";
+    let ctaHref = "/trial";
+
+    if (isPendingPayment) {
+      title = "Pagamento aguardando confirmação.";
+      description =
+        "Recebemos o início da contratação. Assim que o Asaas confirmar o pagamento, sua assinatura será ativada automaticamente.";
+      cta = "Ver planos";
+      ctaHref = subscribeUrl;
+    } else if (isCanceled) {
+      title = "Sua assinatura está cancelada.";
+      description =
+        planLabel !== "—"
+          ? `O plano ${planLabel} não está mais ativo. Escolha um novo plano para voltar a usar a plataforma.`
+          : "Escolha um novo plano para voltar a usar a plataforma.";
+      cta = "Escolher um novo plano";
+      ctaHref = subscribeUrl;
+    }
+
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
-            <Lock className="h-6 w-6 text-primary" />
+            {isPendingPayment ? (
+              <Clock className="h-6 w-6 text-primary" />
+            ) : (
+              <Lock className="h-6 w-6 text-primary" />
+            )}
           </div>
-          <h2 className="mb-2 text-xl font-semibold text-foreground">
-            Sua conta foi criada com sucesso.
-          </h2>
-          <p className="mx-auto mb-6 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Para acessar todos os recursos da plataforma — categorias, integrações,
-            análise e demais funcionalidades — é necessário possuir uma assinatura ativa.
+          <h2 className="mb-2 text-xl font-semibold text-foreground">{title}</h2>
+          <p className="mx-auto mb-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            {description}
           </p>
+          {(subscription?.planId || periodEnd) && (
+            <p className="mb-6 text-xs text-muted-foreground">
+              {subscription?.planId ? `Plano: ${planLabel}` : null}
+              {subscription?.planId && periodEnd ? " · " : null}
+              {periodEnd ? `Referência: ${periodEnd}` : null}
+              {status && status !== "none" ? ` · Status: ${status}` : null}
+            </p>
+          )}
           <Button
             className="btn-gradient font-semibold text-primary-foreground"
             onClick={() => {
-              window.location.assign(subscribeUrl);
+              if (ctaHref.startsWith("http") || ctaHref.includes("#")) {
+                window.location.assign(ctaHref);
+              } else {
+                navigate(ctaHref);
+              }
             }}
           >
-            Ver planos e assinar
+            {cta}
           </Button>
         </div>
 

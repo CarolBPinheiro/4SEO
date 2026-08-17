@@ -8,6 +8,8 @@ services:
     plan: starter
     numInstances: 1
     healthCheckPath: /api/health
+    domains:
+      - api.4seo.app
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
@@ -24,9 +26,17 @@ services:
       - key: FRONTEND_URL
         value: https://4seo.app
       - key: BACKEND_URL
-        sync: false
+        value: https://api.4seo.app
       - key: CORS_ORIGINS
         value: https://4seo.app,https://www.4seo.app
+      - key: GSC_CLIENT_ID
+        sync: false
+      - key: GSC_CLIENT_SECRET
+        sync: false
+      - key: GSC_REDIRECT_URI
+        value: https://api.4seo.app/api/gsc/callback
+      - key: SEARCHAPI_KEY
+        sync: false
       - key: NUVEMSHOP_APP_ID
         sync: false
       - key: NUVEMSHOP_CLIENT_SECRET

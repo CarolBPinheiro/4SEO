@@ -49,8 +49,10 @@ Fluxo: landing (`:3000`) → Login (`:8080/login`) → API (`:8000/api/*`).
 
 ## Documentação
 
+- `docs/go-live/DOMAINS.md` — `4seo.app` (Netlify) + `api.4seo.app` (Render)
 - `docs/ecosystem.md` — visão do ecossistema
 - `docs/asaas-backend-contract.md` — checkout Asaas (implementado em `backend/app/billing/`)
-- `backend/.env.example` — secrets do servidor
-- `docs/SETUP.md` — setup detalhado do produto (se presente)
+- `backend/.env.example` — secrets do servidor (local)
+- `.env.production.example` / `backend/.env.production.example` — produção
+- `docs/SETUP.md` — setup detalhado do produto
 - `supabase/billing.sql` — tabelas de checkout/assinatura/webhooks

@@ -14,6 +14,7 @@ import AdminRoute from "@/components/layout/AdminRoute";
 
 import MarketingRedirect from "./screens/MarketingRedirect";
 import Login from "./screens/Login";
+import TrialSelect from "./screens/TrialSelect";
 import Dashboard from "./screens/Dashboard";
 import TermosPesquisa from "./screens/TermosPesquisa";
 import Historico from "./screens/Historico";
@@ -32,15 +33,21 @@ import AdminContentPage from "./screens/admin/AdminContentPage";
 
 const queryClient = new QueryClient();
 
-function ProtectedApp({ children }: { children: React.ReactNode }) {
+function ProtectedBilling({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <BillingProvider>
-        <StoreProvider>
-          <AppLayout>{children}</AppLayout>
-        </StoreProvider>
-      </BillingProvider>
+      <BillingProvider>{children}</BillingProvider>
     </ProtectedRoute>
+  );
+}
+
+function ProtectedApp({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedBilling>
+      <StoreProvider>
+        <AppLayout>{children}</AppLayout>
+      </StoreProvider>
+    </ProtectedBilling>
   );
 }
 
@@ -55,12 +62,20 @@ const App = () => (
             <Routes>
               <Route path="/" element={<MarketingRedirect />} />
               <Route path="/login" element={<Login />} />
+              <Route
+                path="/trial"
+                element={
+                  <ProtectedBilling>
+                    <TrialSelect />
+                  </ProtectedBilling>
+                }
+              />
               <Route path="/dashboard" element={<ProtectedApp><Dashboard /></ProtectedApp>} />
               <Route
                 path="/termos"
                 element={
                   <ProtectedApp>
-                    <SubscriptionRoute>
+                    <SubscriptionRoute level="full">
                       <TermosPesquisa />
                     </SubscriptionRoute>
                   </ProtectedApp>
@@ -70,7 +85,7 @@ const App = () => (
                 path="/historico"
                 element={
                   <ProtectedApp>
-                    <SubscriptionRoute>
+                    <SubscriptionRoute level="full">
                       <Historico />
                     </SubscriptionRoute>
                   </ProtectedApp>
@@ -80,7 +95,7 @@ const App = () => (
                 path="/integracoes"
                 element={
                   <ProtectedApp>
-                    <SubscriptionRoute>
+                    <SubscriptionRoute level="trial">
                       <Integracoes />
                     </SubscriptionRoute>
                   </ProtectedApp>
@@ -90,7 +105,7 @@ const App = () => (
                 path="/analise"
                 element={
                   <ProtectedApp>
-                    <SubscriptionRoute>
+                    <SubscriptionRoute level="trial">
                       <Analise />
                     </SubscriptionRoute>
                   </ProtectedApp>
@@ -100,7 +115,7 @@ const App = () => (
                 path="/panorama"
                 element={
                   <ProtectedApp>
-                    <SubscriptionRoute>
+                    <SubscriptionRoute level="full">
                       <PanoramaSEO />
                     </SubscriptionRoute>
                   </ProtectedApp>

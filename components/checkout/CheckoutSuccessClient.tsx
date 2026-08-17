@@ -43,8 +43,8 @@ export function CheckoutSuccessClient() {
       title="Pagamento recebido"
       description={
         ref
-          ? "Sua assinatura está sendo ativada. Faça login (ou crie sua conta) para vincular o plano ao seu usuário."
-          : "Sua assinatura está sendo ativada. Em alguns instantes você poderá acessar a plataforma. Se já tiver conta, faça login."
+          ? "Pagamento recebido. Crie sua conta ou faça login para vincular a assinatura. O acesso aos recursos só libera com assinatura confirmada."
+          : "Pagamento recebido. Em instantes a assinatura pode ser ativada. Faça login na sua conta para acessar a plataforma."
       }
       tone="success"
       actions={

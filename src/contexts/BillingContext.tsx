@@ -9,7 +9,14 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { getToken } from "@/lib/apiClient";
 import { claimPendingCheckout } from "@/lib/billingClaim";
-import { getMarketingUrl } from "@/lib/site";
+import { getPlansUrl } from "@/lib/site";
+import {
+  type AccessLevel,
+  canAccessTrialSurfaces,
+  isFullAccess,
+  isPendingSubscriptionStatus,
+  isTrialAccess,
+} from "@/lib/subscriptionAccess";
 
 export type SubscriptionStatus =
   | "none"
@@ -18,6 +25,8 @@ export type SubscriptionStatus =
   | "past_due"
   | "canceled"
   | "expired"
+  | "pending"
+  | "inactive"
   | string;
 
 export interface SubscriptionInfo {
@@ -27,29 +36,34 @@ export interface SubscriptionInfo {
   asaasSubscriptionId?: string | null;
   asaasCustomerId?: string | null;
   currentPeriodEnd?: string | null;
+  trialEndsAt?: string | null;
+  accessLevel?: AccessLevel | string;
   updatedAt?: string | null;
 }
 
 interface BillingContextType {
   subscription: SubscriptionInfo | null;
   loading: boolean;
+  /** Assinatura paga (APIs reais). */
+  hasFullAccess: boolean;
+  /** Trial UI (Dashboard + Análise limitados). */
+  hasTrialAccess: boolean;
+  /** full || trial — navegar em Dashboard, Análise e Integrações. */
+  canUseAppPreview: boolean;
+  /** @deprecated use hasFullAccess — mantido para telas que bloqueiam recursos pagos */
   hasActiveSubscription: boolean;
+  isPendingPayment: boolean;
   refreshSubscription: () => Promise<SubscriptionInfo | null>;
   subscribeUrl: string;
+  startTrial: (planId: string) => Promise<SubscriptionInfo>;
 }
 
 const BillingContext = createContext<BillingContextType | null>(null);
 
-const ENTITLED = new Set(["active", "trialing", "past_due"]);
-
-function isEntitled(status: string | undefined | null): boolean {
-  return !!status && ENTITLED.has(status);
-}
-
-async function fetchSubscription(): Promise<SubscriptionInfo> {
+export async function fetchSubscription(): Promise<SubscriptionInfo> {
   const token = getToken();
   if (!token) {
-    return { status: "none" };
+    return { status: "none", accessLevel: "none" };
   }
   const base = import.meta.env.VITE_API_BASE_URL || "/api";
   const res = await fetch(`${base}/billing/subscription`, {
@@ -59,7 +73,7 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
     },
   });
   if (!res.ok) {
-    return { status: "none" };
+    return { status: "none", accessLevel: "none" };
   }
   const data = (await res.json()) as SubscriptionInfo;
   return {
@@ -69,6 +83,8 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
     asaasSubscriptionId: data?.asaasSubscriptionId ?? null,
     asaasCustomerId: data?.asaasCustomerId ?? null,
     currentPeriodEnd: data?.currentPeriodEnd ?? null,
+    trialEndsAt: data?.trialEndsAt ?? null,
+    accessLevel: (data?.accessLevel as AccessLevel) || "none",
     updatedAt: data?.updatedAt ?? null,
   };
 }
@@ -95,12 +111,46 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       setSubscription(info);
       return info;
     } catch {
-      setSubscription({ status: "none" });
-      return { status: "none" };
+      setSubscription({ status: "none", accessLevel: "none" });
+      return { status: "none", accessLevel: "none" };
     } finally {
       setLoading(false);
     }
   }, [user]);
+
+  const startTrial = useCallback(
+    async (planId: string) => {
+      const token = getToken();
+      if (!token) {
+        throw new Error("Faça login para iniciar a avaliação.");
+      }
+      const base = import.meta.env.VITE_API_BASE_URL || "/api";
+      const res = await fetch(`${base}/billing/start-trial`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ planId }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | SubscriptionInfo
+        | { message?: string }
+        | null;
+      if (!res.ok) {
+        const message =
+          body && typeof body === "object" && "message" in body
+            ? String(body.message || "")
+            : "";
+        throw new Error(message || "Não foi possível iniciar a avaliação.");
+      }
+      const info = body as SubscriptionInfo;
+      setSubscription(info);
+      return info;
+    },
+    [],
+  );
 
   useEffect(() => {
     if (authLoading) {
@@ -114,14 +164,23 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     void refreshSubscription();
   }, [user, authLoading, refreshSubscription]);
 
-  const hasActiveSubscription = isEntitled(subscription?.status);
+  const level = subscription?.accessLevel || "none";
+  const hasFullAccess = isFullAccess(level);
+  const hasTrialAccess = isTrialAccess(level);
+  const canUseAppPreview = canAccessTrialSurfaces(level);
+  const isPendingPayment = isPendingSubscriptionStatus(subscription?.status);
 
   const value: BillingContextType = {
     subscription,
     loading: authLoading || loading,
-    hasActiveSubscription,
+    hasFullAccess,
+    hasTrialAccess,
+    canUseAppPreview,
+    hasActiveSubscription: hasFullAccess,
+    isPendingPayment,
     refreshSubscription,
-    subscribeUrl: `${getMarketingUrl()}/#planos`,
+    subscribeUrl: getPlansUrl(),
+    startTrial,
   };
 
   return (

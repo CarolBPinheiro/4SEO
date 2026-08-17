@@ -21,6 +21,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Catálogo de planos compartilhado com a landing Next
+      "@billing-plans": path.resolve(__dirname, "./lib/billing/plans.ts"),
     },
   },
 });

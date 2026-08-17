@@ -9,7 +9,7 @@ Só execute após o Sandbox E2E verde ([ASAAS_SANDBOX.md](./ASAAS_SANDBOX.md)).
    - `ASAAS_API_KEY` = key de produção
    - `ASAAS_BASE_URL=https://api.asaas.com/v3`
    - `ASAAS_WEBHOOK_TOKEN` = authToken do webhook de **produção**
-3. Criar webhook de produção: `{BACKEND_URL}/webhooks/asaas` (mesmos eventos)
+3. Criar webhook de produção: `https://api.4seo.app/webhooks/asaas` (mesmos eventos)
 4. Confirmar `APP_PUBLIC_URL=https://4seo.app`
 5. **Save and deploy** (não só Restart)
 6. 1 compra real (plano Start) → sucesso → webhook → claim → `subscriptions` active

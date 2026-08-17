@@ -181,6 +181,26 @@ class TestWebhookEndpoint:
         mock_repo.mark_webhook_processed.assert_awaited_with("evt_paid")
 
 
+class TestAsaasErrorParsing:
+    def test_invalid_environment_message(self):
+        from app.billing.asaas_client import _safe_asaas_error_message
+
+        class _Resp:
+            def json(self):
+                return {
+                    "errors": [
+                        {
+                            "code": "invalid_environment",
+                            "description": "A chave de API informada não pertence a este ambiente",
+                        }
+                    ]
+                }
+
+        message, code = _safe_asaas_error_message(_Resp())  # type: ignore[arg-type]
+        assert code == "invalid_environment"
+        assert "sandbox vs produção" in message
+
+
 class TestBillingServiceValidation:
     @pytest.mark.asyncio
     async def test_invalid_plan_raises(self):

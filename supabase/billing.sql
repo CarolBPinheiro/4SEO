@@ -45,6 +45,8 @@ create table if not exists public.subscriptions (
   amount numeric(12, 2),
   currency text not null default 'BRL',
   current_period_end timestamptz,
+  trial_started_at timestamptz,
+  trial_ends_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

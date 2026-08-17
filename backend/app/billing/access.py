@@ -1,7 +1,8 @@
-"""Autorização por assinatura ativa (fonte: tabela subscriptions / Asaas).
+"""Autorização por assinatura.
 
-Conta autenticada ≠ acesso aos recursos. Apenas status em
-ACTIVE_SUBSCRIPTION_STATUSES libera APIs de produto.
+- full (active|past_due): APIs de produto
+- trial (trialing válido): mesmas APIs — FE bloqueia Termos/Histórico/Panorama
+- Conta autenticada ≠ acesso ao produto
 """
 
 from __future__ import annotations
@@ -18,15 +19,17 @@ from app.billing.repository import BillingRepository
 
 logger = logging.getLogger(__name__)
 
-# Alinhado a BillingRepository.get_active_subscription_for_user
-ACTIVE_SUBSCRIPTION_STATUSES: Set[str] = {"active", "trialing", "past_due"}
+# Assinatura paga
+FULL_ACCESS_STATUSES: Set[str] = {"active", "past_due"}
+
+# UX ampla (pago + trial)
+ACTIVE_SUBSCRIPTION_STATUSES: Set[str] = FULL_ACCESS_STATUSES | {"trialing"}
 
 SUBSCRIPTION_REQUIRED_MESSAGE = (
     "Assinatura ativa necessária para acessar este recurso. "
     "Crie ou reative sua assinatura para continuar."
 )
 
-# Prefixos/paths que nunca exigem assinatura (públicos, billing, OAuth callbacks).
 _EXEMPT_EXACT = frozenset(
     {
         "/api/health",
@@ -44,19 +47,15 @@ _EXEMPT_PREFIXES = (
     "/api/webhooks",
     "/webhooks",
     "/api/admin",
-    # Callbacks OAuth de plataformas (redirect do browser, sem Bearer tipicamente)
     "/api/shopify/oauth-redirect",
     "/api/nuvemshop/oauth-redirect",
     "/api/nuvemshop/auth",
     "/api/gsc/callback",
 )
 
-def path_requires_subscription(path: str) -> bool:
-    """True se o path de API de produto exige assinatura ativa.
 
-    Billing e health ficam isentos. Demais /api/* (incl. dashboard) exigem
-    assinatura — o frontend monta o dashboard zerado sem chamar essas APIs.
-    """
+def path_requires_subscription(path: str) -> bool:
+    """True se o path exige assinatura paga ou trial válido."""
     if not path.startswith("/api/"):
         return False
     if path in _EXEMPT_EXACT:
@@ -68,21 +67,31 @@ def path_requires_subscription(path: str) -> bool:
 
 
 def is_entitled_status(status: Optional[str]) -> bool:
+    """Status que conta como 'ativo' na UX ampla (inclui trialing)."""
     if not status:
         return False
     return status in ACTIVE_SUBSCRIPTION_STATUSES
 
 
+def is_full_access_status(status: Optional[str]) -> bool:
+    if not status:
+        return False
+    return status in FULL_ACCESS_STATUSES
+
+
 async def user_has_active_subscription(user_id: str) -> bool:
+    """True se o usuário pode chamar APIs de produto (pago full ou trial válido)."""
     repo = BillingRepository()
     row = await repo.get_active_subscription_for_user(user_id)
-    return bool(row and is_entitled_status(row.get("status")))
+    if row and is_full_access_status(row.get("status")):
+        return True
+    trial = await repo.get_valid_trial_for_user(user_id)
+    return bool(trial)
 
 
 async def require_active_subscription(
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """Dependency FastAPI: JWT válido + assinatura ativa."""
     user_id = user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Autenticação necessária")
@@ -107,7 +116,7 @@ def subscription_denied_response() -> JSONResponse:
 
 
 async def enforce_subscription_middleware(request: Request, call_next):
-    """Bloqueia APIs de produto sem assinatura ativa (centralizado)."""
+    """Bloqueia APIs de produto sem assinatura paga nem trial válido."""
     if request.method == "OPTIONS":
         return await call_next(request)
 
@@ -117,7 +126,6 @@ async def enforce_subscription_middleware(request: Request, call_next):
 
     credentials: Optional[HTTPAuthorizationCredentials] = await security(request)
     if not credentials:
-        # Sem token: deixa o Depends(get_current_user) da rota responder 401
         return await call_next(request)
 
     try:
@@ -128,14 +136,13 @@ async def enforce_subscription_middleware(request: Request, call_next):
 
         if not await user_has_active_subscription(user_id):
             logger.info(
-                "Acesso bloqueado sem assinatura ativa: user=%s path=%s",
+                "Acesso bloqueado sem assinatura/trial: user=%s path=%s",
                 user_id,
                 path,
             )
             return subscription_denied_response()
     except HTTPException as exc:
         if exc.status_code in (401, 503):
-            # Token inválido/expirado: rota responde normalmente
             return await call_next(request)
         raise
     except Exception:

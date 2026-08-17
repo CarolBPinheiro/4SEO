@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const HERO_VIDEO_SRC = "/videos/4SEO.mp4";
+/** Barras em movimento (vídeo original da Hero). Não usar 4SEO.mp4 — esse é o demo do dashboard. */
+const HERO_VIDEO_SRC = "/videos/hero-bars.mp4";
 
 /** Velocidade do loop — abaixo de 1 deixa o movimento das barras mais calmo. */
 const HERO_VIDEO_PLAYBACK_RATE = 0.55;

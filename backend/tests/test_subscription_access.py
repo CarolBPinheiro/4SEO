@@ -48,6 +48,40 @@ class TestEntitledStatus:
         assert is_entitled_status("none") is False
         assert is_entitled_status(None) is False
 
+    def test_full_access_excludes_trialing(self):
+        from app.billing.access import is_full_access_status
+
+        assert is_full_access_status("active") is True
+        assert is_full_access_status("past_due") is True
+        assert is_full_access_status("trialing") is False
+        assert is_full_access_status("none") is False
+
+    @pytest.mark.asyncio
+    async def test_product_access_allows_valid_trial(self):
+        from app.billing.access import user_has_active_subscription
+
+        with patch(
+            "app.billing.access.BillingRepository"
+        ) as repo_cls:
+            instance = repo_cls.return_value
+            instance.get_active_subscription_for_user = AsyncMock(return_value=None)
+            instance.get_valid_trial_for_user = AsyncMock(
+                return_value={"id": "t1", "status": "trialing"}
+            )
+            assert await user_has_active_subscription("user-1") is True
+
+    @pytest.mark.asyncio
+    async def test_product_access_denies_without_full_or_trial(self):
+        from app.billing.access import user_has_active_subscription
+
+        with patch(
+            "app.billing.access.BillingRepository"
+        ) as repo_cls:
+            instance = repo_cls.return_value
+            instance.get_active_subscription_for_user = AsyncMock(return_value=None)
+            instance.get_valid_trial_for_user = AsyncMock(return_value=None)
+            assert await user_has_active_subscription("user-1") is False
+
 
 @pytest.fixture
 def gated_app():

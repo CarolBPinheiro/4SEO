@@ -42,7 +42,7 @@ espera exponencial, respeitando o cabeçalho `Retry-After` quando a plataforma o
   `SHOPIFY_API_VERSION` (`shopify.py`).
 - **Autenticação (fluxo principal):** OAuth 2.0 do app 4SEO no Shopify Partners / Dev Dashboard.
   Variáveis de servidor: `SHOPIFY_API_KEY` (Client ID) e `SHOPIFY_API_SECRET` (Client secret).
-  Redirect URI: `{BACKEND_URL}/api/shopify/oauth-redirect`. O lojista informa só o nome da loja
+  Redirect URI: `https://api.4seo.app/api/shopify/oauth-redirect`. O lojista informa só o nome da loja
   na UI; o backend redireciona para a autorização e recebe um *offline access token*.
 - **Autenticação (legado):** `POST /api/shopify/connect` com access token de app customizado
   na loja (`shpat_...`) — mantido como fallback.

@@ -16,6 +16,10 @@ class ClaimCheckoutRequest(BaseModel):
     externalReference: str
 
 
+class StartTrialRequest(BaseModel):
+    planId: str
+
+
 class CreateCheckoutResponse(BaseModel):
     checkoutUrl: str
     checkoutId: str
@@ -29,6 +33,8 @@ class SubscriptionResponse(BaseModel):
     asaasSubscriptionId: Optional[str] = None
     asaasCustomerId: Optional[str] = None
     currentPeriodEnd: Optional[str] = None
+    trialEndsAt: Optional[str] = None
+    accessLevel: str = "none"  # none | trial | full
     updatedAt: Optional[str] = None
 
 

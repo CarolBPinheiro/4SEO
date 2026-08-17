@@ -25,6 +25,7 @@ const DEPLOY = join(ROOT, "deploy-out");
 
 const SPA_ROUTES = [
   "/login",
+  "/trial",
   "/dashboard",
   "/analise",
   "/integracoes",

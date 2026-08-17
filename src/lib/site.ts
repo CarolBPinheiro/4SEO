@@ -6,3 +6,8 @@ export function getMarketingUrl(): string {
   }
   return "http://localhost:3000";
 }
+
+/** Âncora de planos na landing (escolha de assinatura / Asaas). */
+export function getPlansUrl(): string {
+  return `${getMarketingUrl()}/#planos`;
+}

@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "backend" / ".env")
 
 TABLES = ("billing_checkouts", "subscriptions", "billing_webhook_events")
+TRIAL_COLUMNS = ("trial_ends_at", "trial_started_at")
 
 
 def main() -> int:
@@ -36,15 +37,31 @@ def main() -> int:
             if resp.status_code != 200:
                 ok = False
 
+        trial_select = ",".join(TRIAL_COLUMNS)
+        trial_resp = client.get(
+            f"{url}/rest/v1/subscriptions",
+            headers=headers,
+            params={"select": trial_select, "limit": "1"},
+        )
+        if trial_resp.status_code == 200:
+            print(f"subscriptions.{','.join(TRIAL_COLUMNS)}: OK")
+        else:
+            ok = False
+            print(
+                f"subscriptions trial columns: MISSING ({trial_resp.status_code}) "
+                f"{trial_resp.text[:200]}"
+            )
+
     if not ok:
         print(
-            "\nAplique supabase/billing.sql (veja supabase/BILLING_APPLY.md "
-            "ou: python scripts/apply_billing_schema.py).",
+            "\nAplique supabase/billing.sql e "
+            "supabase/migrations/20260812190000_subscription_trial.sql "
+            "(veja supabase/BILLING_APPLY.md ou: python scripts/apply_billing_schema.py).",
             file=sys.stderr,
         )
         return 1
 
-    print("\nSchema de billing presente.")
+    print("\nSchema de billing + trial presente.")
     return 0
 
 
