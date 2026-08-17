@@ -50,7 +50,7 @@ services:
       - key: ASAAS_API_KEY
         sync: false
       - key: ASAAS_BASE_URL
-        value: https://api-sandbox.asaas.com/v3
+        value: https://api.asaas.com/v3
       - key: ASAAS_WEBHOOK_TOKEN
         sync: false
       - key: APP_PUBLIC_URL

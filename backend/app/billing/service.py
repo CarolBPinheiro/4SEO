@@ -69,7 +69,8 @@ class BillingService:
         expired_url = f"{public_url}/checkout/expirado?ref={external_reference}"
 
         payload: Dict[str, Any] = {
-            "billingTypes": ["CREDIT_CARD", "PIX"],
+            # Asaas produção: RECURRENT aceita somente CREDIT_CARD (PIX é DETACHED).
+            "billingTypes": ["CREDIT_CARD"],
             "chargeTypes": ["RECURRENT"],
             "minutesToExpire": MINUTES_TO_EXPIRE,
             "externalReference": external_reference,

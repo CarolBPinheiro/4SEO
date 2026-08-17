@@ -89,8 +89,10 @@ class TestCheckoutEndpoint:
     def test_creates_checkout_session(self, billing_app):
         mock_repo = MagicMock()
         mock_repo.create_checkout_record = AsyncMock(return_value={})
+        captured: dict = {}
 
-        async def fake_create(_payload):
+        async def fake_create(payload):
+            captured["payload"] = payload
             return {
                 "id": "chk_test_123",
                 "link": "https://sandbox.asaas.com/checkoutSession/show/chk_test_123",
@@ -112,6 +114,8 @@ class TestCheckoutEndpoint:
         assert body["checkoutId"] == "chk_test_123"
         assert body["checkoutUrl"].startswith("https://")
         assert "expiresAt" in body
+        assert captured["payload"]["billingTypes"] == ["CREDIT_CARD"]
+        assert captured["payload"]["chargeTypes"] == ["RECURRENT"]
         mock_repo.create_checkout_record.assert_awaited()
 
 
