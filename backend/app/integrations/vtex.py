@@ -638,6 +638,12 @@ def create_vtex_client(
     key = account_name.strip().lower()
     if key in _vtex_clients:
         return _vtex_clients[key]
+    if str(app_token).startswith("demo_") or str(app_key).startswith("demo_"):
+        from app.demo.clients import DemoVtexClient
+
+        client = DemoVtexClient(account_name, app_key, app_token, environment)
+        _vtex_clients[key] = client
+        return client
     client = VtexClient(account_name, app_key, app_token, environment)
     _vtex_clients[key] = client
     return client

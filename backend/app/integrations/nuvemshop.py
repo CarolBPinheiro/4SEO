@@ -1469,6 +1469,13 @@ def create_nuvemshop_client(store_id: str, access_token: Optional[str] = None) -
         if not access_token:
             raise ValueError(f"Token não encontrado para loja {store_id}. Faça o login OAuth primeiro.")
     
+    if access_token and str(access_token).startswith("demo_"):
+        from app.demo.clients import DemoNuvemshopClient
+
+        client = DemoNuvemshopClient(store_id, access_token)
+        _nuvemshop_clients[store_id] = client
+        return client
+
     client = NuvemshopClient(store_id, access_token)
     _nuvemshop_clients[store_id] = client
     

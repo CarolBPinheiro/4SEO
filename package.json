@@ -18,7 +18,10 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:backend": "cd backend && .venv\\Scripts\\python.exe -m pytest -q"
+    "test:backend": "cd backend && .venv\\Scripts\\python.exe -m pytest -q",
+    "demo": "node scripts/demo.mjs",
+    "demo:seed": "backend\\.venv\\Scripts\\python.exe backend/scripts/seed_demo.py",
+    "demo:reset": "backend\\.venv\\Scripts\\python.exe backend/scripts/reset_demo.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

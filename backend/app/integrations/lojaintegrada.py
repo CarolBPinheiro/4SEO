@@ -704,6 +704,12 @@ def create_lojaintegrada_client(chave_api: str, chave_aplicacao: Optional[str] =
     key = hashlib.md5(chave_api.strip().encode()).hexdigest()[:12]
     if key in _lojaintegrada_clients:
         return _lojaintegrada_clients[key]
+    if str(chave_api).startswith("demo_"):
+        from app.demo.clients import DemoLojaIntegradaClient
+
+        client = DemoLojaIntegradaClient(chave_api, chave_aplicacao)
+        _lojaintegrada_clients[key] = client
+        return client
     client = LojaIntegradaClient(chave_api, chave_aplicacao)
     _lojaintegrada_clients[key] = client
     return client

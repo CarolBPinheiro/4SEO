@@ -146,6 +146,11 @@ async def get_gsc_tokens(user_id: str) -> Optional[dict]:
         return None
 
     token_row = result[0]
+    if str(token_row.get("access_token") or "").startswith("demo_") or str(
+        token_row.get("refresh_token") or ""
+    ).startswith("demo_"):
+        return token_row
+
     expires_at = token_row.get("expires_at", "")
 
     # Check if token is expired (with 5 min buffer)
@@ -179,6 +184,11 @@ async def delete_gsc_tokens(user_id: str) -> None:
 
 async def list_gsc_sites(access_token: str) -> List[str]:
     """List all sites the user has access to in GSC"""
+    from app.demo.gsc import demo_sites, is_demo_gsc_token
+
+    if is_demo_gsc_token(access_token):
+        return demo_sites()
+
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             "https://www.googleapis.com/webmasters/v3/sites",
@@ -202,6 +212,11 @@ async def fetch_gsc_performance(
     Fetch performance data from Google Search Console API.
     Returns impressions, clicks, CTR, position for the site.
     """
+    from app.demo.gsc import demo_performance, is_demo_gsc_token
+
+    if is_demo_gsc_token(access_token):
+        return demo_performance(dimensions)
+
     if not start_date:
         start_date = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
     if not end_date:
@@ -237,6 +252,11 @@ async def fetch_gsc_overview(access_token: str, site_url: str) -> Dict[str, Any]
     Fetch overview metrics: total impressions, clicks, avg CTR, avg position.
     Also fetches unique pages that appeared in search.
     """
+    from app.demo.gsc import demo_overview, is_demo_gsc_token
+
+    if is_demo_gsc_token(access_token):
+        return demo_overview(site_url)
+
     overall = await fetch_gsc_performance(
         access_token, site_url, dimensions=[], row_limit=1
     )
@@ -278,6 +298,11 @@ async def fetch_gsc_page_performance(
     Fetch GSC performance metrics for a specific page (last 30 days).
     Returns clicks, impressions, CTR, avg position, and top queries for the page.
     """
+    from app.demo.gsc import demo_page_performance, is_demo_gsc_token
+
+    if is_demo_gsc_token(access_token):
+        return demo_page_performance(page_url)
+
     try:
         # Page-level aggregate
         page_data = await fetch_gsc_performance(

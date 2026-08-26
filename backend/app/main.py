@@ -13,6 +13,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from app.demo.config import DemoModeError, assert_demo_safe, demo_info_payload
+
+try:
+    assert_demo_safe()
+except DemoModeError:
+    raise
+
 import httpx
 from bs4 import BeautifulSoup
 from app.seo_analysis import analyze_seo_html, ISSUE_CONFIG
@@ -23,6 +30,7 @@ from app.auth import get_current_user, get_optional_user
 from app.billing import router as billing_router
 from app.billing.access import enforce_subscription_middleware
 from app.admin import router as admin_router
+from app.demo.router import router as demo_router
 
 
 logger = logging.getLogger(__name__)
@@ -156,6 +164,7 @@ app.include_router(billing_router)
 app.include_router(billing_router, prefix="/api")
 app.include_router(admin_router)
 app.include_router(admin_router, prefix="/api")
+app.include_router(demo_router)
 
 
 @app.middleware("http")
@@ -251,6 +260,7 @@ async def api_info():
             {"name": "gpt-4o", "provider": "OpenAI", "cost": "$2.50/1M tokens"},
         ],
         "setup_instructions": "Adicione OPENAI_API_KEY no arquivo .env para habilitar IA",
+        "demo": demo_info_payload(),
     }
 
 
@@ -1028,7 +1038,13 @@ async def diagnose_scan(user: dict = Depends(get_current_user)):
     site = sites[0]
     base_url = site.get("base_url") or ""
     try:
-        result = await _crawl(base_url, max_pages=5)
+        from app.demo.config import is_demo_mode
+        from app.demo.scan import crawl_demo_site
+
+        if is_demo_mode():
+            result = crawl_demo_site(base_url, max_pages=5)
+        else:
+            result = await _crawl(base_url, max_pages=5)
         return {
             "base_url": base_url,
             "pages_found": result.get("pages_found"),

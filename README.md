@@ -40,12 +40,15 @@ npm run dev:marketing
 
 Fluxo: landing (`:3000`) → Login (`:8080/login`) → API (`:8000/api/*`).
 
+Sandbox local (dados fictícios): `DEMO_MODE=true` em `backend/.env`, depois `npm run demo:seed` e `npm run demo`. Guia: `docs/DEMO.md`.
+
 ## Scripts
 
 - `npm run dev:marketing` / `build:marketing`
 - `npm run dev:app` / `build:app`
 - `npm test` — Vitest (app)
 - `npm run test:backend` — Pytest (requer venv)
+- `npm run demo` / `demo:seed` / `demo:reset` — sandbox de demonstração
 
 ## Documentação
 
@@ -55,4 +58,5 @@ Fluxo: landing (`:3000`) → Login (`:8080/login`) → API (`:8000/api/*`).
 - `backend/.env.example` — secrets do servidor (local)
 - `.env.production.example` / `backend/.env.production.example` — produção
 - `docs/SETUP.md` — setup detalhado do produto
+- `docs/DEMO.md` — sandbox de demonstração local
 - `supabase/billing.sql` — tabelas de checkout/assinatura/webhooks

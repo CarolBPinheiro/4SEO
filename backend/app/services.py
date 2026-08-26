@@ -103,7 +103,13 @@ class ScanService:
 
         # Execute crawl
         try:
-            result = await crawl_site(base_url, max_pages=max_pages)
+            from app.demo.config import is_demo_mode
+            from app.demo.scan import crawl_demo_site
+
+            if is_demo_mode():
+                result = crawl_demo_site(base_url, max_pages=max_pages)
+            else:
+                result = await crawl_site(base_url, max_pages=max_pages)
         except Exception as e:
             _log.exception(f"[ScanService] crawl_site falhou site={site_id}: {e}")
             # Completa o scan_run com 0 páginas para não deixar em estado pendurado

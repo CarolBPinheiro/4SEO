@@ -135,7 +135,12 @@ async def fetch_trends(keywords: List[str], geo: str = "BR", timeframe: str = "t
     Fetch Google Trends data via SearchAPI.io.
     Drop-in replacement for pytrends_client.fetch_trends  - same signature and output format.
     """
+    from app.demo.config import is_demo_mode
+    from app.demo.searchapi import demo_trends
+
     if not SEARCHAPI_KEY:
+        if is_demo_mode():
+            return demo_trends(keywords)
         logger.error("[searchapi] SEARCHAPI_KEY not configured")
         return {
             "keywords": keywords,
@@ -257,6 +262,11 @@ async def fetch_trending_now(
                 }
 
     if not SEARCHAPI_KEY:
+        from app.demo.config import is_demo_mode
+        from app.demo.searchapi import demo_trending_now
+
+        if is_demo_mode():
+            return demo_trending_now(geo=geo, time_window=time_window, limit=limit)
         logger.error("[searchapi] SEARCHAPI_KEY not configured (trending_now)")
         return {
             "geo": geo,
@@ -347,6 +357,11 @@ async def fetch_serp(keyword: str, geo: str = "BR", num_results: int = 5) -> Dic
     Returns structured data about top-ranking pages for competitive analysis.
     """
     if not SEARCHAPI_KEY:
+        from app.demo.config import is_demo_mode
+        from app.demo.searchapi import demo_serp
+
+        if is_demo_mode():
+            return {"keyword": keyword, **demo_serp(keyword, num_results)}
         logger.warning("[searchapi] SEARCHAPI_KEY not configured  - skipping SERP fetch")
         return {"keyword": keyword, "results": [], "error": "SEARCHAPI_KEY não configurada"}
 

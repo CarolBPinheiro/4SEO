@@ -26,6 +26,7 @@
 backend/.venv/
 backend/**/__pycache__/
 backend/.pytest_cache/
+backend/.demo-state/
 **/__pycache__/
 *.pyc
 venv/

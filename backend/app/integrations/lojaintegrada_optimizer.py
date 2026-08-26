@@ -171,6 +171,10 @@ class LojaIntegradaSEOOptimizer:
     ) -> List[OptimizationProposal]:
         """Gera propostas de otimização para um produto usando IA"""
         if not self.ai_client:
+            from app.demo.llm import canned_lojaintegrada_product, should_use_canned_llm
+
+            if should_use_canned_llm():
+                return await canned_lojaintegrada_product(self, product_id)
             logger.warning("OpenAI API key não configurada — otimização de IA indisponível; retornando lista vazia")
             return []
 

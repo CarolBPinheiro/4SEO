@@ -395,7 +395,10 @@ class ShopifySEOOptimizer:
         proposals = []
         
         if not self.ai_client:
-            # Fallback sem IA
+            from app.demo.llm import canned_shopify_product, should_use_canned_llm
+
+            if should_use_canned_llm():
+                return await canned_shopify_product(self, product_id)
             return await self._generate_basic_optimizations(
                 product, metafields, 
                 optimize_title, optimize_description,

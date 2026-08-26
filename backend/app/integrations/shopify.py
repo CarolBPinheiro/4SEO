@@ -1803,6 +1803,10 @@ def create_shopify_client(
     1. api_key + api_secret: Para apps privados (desenvolvimento)
     2. access_token: Para apps públicos (OAuth2)
     """
+    if access_token and str(access_token).startswith("demo_"):
+        from app.demo.clients import DemoShopifyClient
+
+        return DemoShopifyClient(shop_url=shop_url, access_token=access_token)
     return ShopifyClient(
         shop_url=shop_url,
         api_key=api_key,
