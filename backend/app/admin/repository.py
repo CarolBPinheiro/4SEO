@@ -116,6 +116,176 @@ class AdminRepository:
         result = await self.db._request("GET", "subscriptions", params=params)
         return result if isinstance(result, list) else []
 
+    async def list_all_subscriptions(self) -> List[Dict[str, Any]]:
+        items: List[Dict[str, Any]] = []
+        offset = 0
+        page_size = 100
+        for _ in range(50):
+            chunk = await self.list_subscriptions(limit=page_size, offset=offset)
+            items.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            offset += page_size
+        return items
+
+    async def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+        result = await self.db._request(
+            "GET",
+            "subscriptions",
+            params={
+                "id": f"eq.{subscription_id}",
+                "select": "*",
+                "limit": "1",
+            },
+        )
+        if isinstance(result, list) and result:
+            return result[0]
+        return None
+
+    async def update_subscription(
+        self, subscription_id: str, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        payload = {**data, "updated_at": datetime.now(timezone.utc).isoformat()}
+        result = await self.db._request(
+            "PATCH",
+            "subscriptions",
+            data=payload,
+            params={"id": f"eq.{subscription_id}"},
+        )
+        if isinstance(result, list) and result:
+            return result[0]
+        if isinstance(result, dict):
+            return result
+        return await self.get_subscription(subscription_id)
+
+    async def insert_subscription_event(self, data: Dict[str, Any]) -> None:
+        try:
+            await self.db._request("POST", "admin_subscription_events", data=data)
+        except Exception:
+            logger.exception("Falha ao gravar admin_subscription_events")
+
+    async def list_subscription_events(
+        self, *, subscription_id: Optional[str] = None, user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, str] = {
+            "select": "*",
+            "order": "created_at.desc",
+            "limit": "50",
+        }
+        if subscription_id:
+            params["subscription_id"] = f"eq.{subscription_id}"
+        if user_id:
+            params["user_id"] = f"eq.{user_id}"
+        try:
+            result = await self.db._request("GET", "admin_subscription_events", params=params)
+        except Exception:
+            logger.exception("Falha ao listar admin_subscription_events")
+            return []
+        return result if isinstance(result, list) else []
+
+    async def insert_ticket(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        result = await self.db._request("POST", "admin_support_tickets", data=data)
+        if isinstance(result, list) and result:
+            return result[0]
+        if isinstance(result, dict):
+            return result
+        return data
+
+    async def get_ticket_by_typebot_id(self, result_id: str) -> Optional[Dict[str, Any]]:
+        result = await self.db._request(
+            "GET",
+            "admin_support_tickets",
+            params={
+                "typebot_result_id": f"eq.{result_id}",
+                "select": "*",
+                "limit": "1",
+            },
+        )
+        if isinstance(result, list) and result:
+            return result[0]
+        return None
+
+    async def list_tickets(self, *, limit: int = 200) -> List[Dict[str, Any]]:
+        try:
+            result = await self.db._request(
+                "GET",
+                "admin_support_tickets",
+                params={
+                    "select": "*",
+                    "order": "opened_at.desc",
+                    "limit": str(min(max(limit, 1), 500)),
+                },
+            )
+        except Exception:
+            logger.exception("Falha ao listar admin_support_tickets")
+            return []
+        return result if isinstance(result, list) else []
+
+    async def list_tickets_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+        try:
+            result = await self.db._request(
+                "GET",
+                "admin_support_tickets",
+                params={
+                    "user_id": f"eq.{user_id}",
+                    "select": "*",
+                    "order": "opened_at.desc",
+                    "limit": "50",
+                },
+            )
+        except Exception:
+            return []
+        return result if isinstance(result, list) else []
+
+    async def get_ticket(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        result = await self.db._request(
+            "GET",
+            "admin_support_tickets",
+            params={"id": f"eq.{ticket_id}", "select": "*", "limit": "1"},
+        )
+        if isinstance(result, list) and result:
+            return result[0]
+        return None
+
+    async def update_ticket(
+        self, ticket_id: str, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        payload = {**data, "updated_at": datetime.now(timezone.utc).isoformat()}
+        result = await self.db._request(
+            "PATCH",
+            "admin_support_tickets",
+            data=payload,
+            params={"id": f"eq.{ticket_id}"},
+        )
+        if isinstance(result, list) and result:
+            return result[0]
+        return await self.get_ticket(ticket_id)
+
+    async def auth_email_map(self) -> Dict[str, str]:
+        mapping: Dict[str, str] = {}
+        page = 1
+        while page <= 15:
+            users, total = await self.list_auth_users(page=page, per_page=100)
+            for user in users:
+                uid = user.get("id")
+                email = user.get("email")
+                if uid and email:
+                    mapping[str(uid)] = str(email)
+            if not users or page * 100 >= total:
+                break
+            page += 1
+        return mapping
+
+    async def find_user_id_by_email(self, email: str) -> Optional[str]:
+        target = (email or "").strip().lower()
+        if not target:
+            return None
+        mapping = await self.auth_email_map()
+        for uid, mapped in mapping.items():
+            if mapped.lower() == target:
+                return uid
+        return None
+
     async def get_subscriptions_for_user(self, user_id: str) -> List[Dict[str, Any]]:
         result = await self.db._request(
             "GET",

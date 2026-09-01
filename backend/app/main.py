@@ -30,6 +30,7 @@ from app.auth import get_current_user, get_optional_user
 from app.billing import router as billing_router
 from app.billing.access import enforce_subscription_middleware
 from app.admin import router as admin_router
+from app.admin.webhooks import router as admin_webhooks_router
 from app.demo.router import router as demo_router
 
 
@@ -164,6 +165,8 @@ app.include_router(billing_router)
 app.include_router(billing_router, prefix="/api")
 app.include_router(admin_router)
 app.include_router(admin_router, prefix="/api")
+app.include_router(admin_webhooks_router)
+app.include_router(admin_webhooks_router, prefix="/api")
 app.include_router(demo_router)
 
 

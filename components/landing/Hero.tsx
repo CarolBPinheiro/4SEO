@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { HeroBeams } from "@/components/landing/HeroBeams";
 import { Parallax, ParallaxTarget } from "@/components/ui/parallax-scrolling";
+import { getAppTrialUrl } from "@/lib/site";
 
 /**
  * Hero Precision AI — dark + bronze, tipografia e CTAs alinhados à logo.
@@ -56,7 +57,7 @@ export function Hero() {
 
         <div className="ray-fade-in-stagger mt-11 flex w-full flex-col items-center gap-3 sm:mt-12">
           <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:gap-3.5">
-            <a href="#planos" className="btn-hero-primary w-full sm:w-auto">
+            <a href={getAppTrialUrl()} className="btn-hero-primary w-full sm:w-auto">
               Testar 7 dias grátis
               <ArrowRight className="h-4 w-4" aria-hidden />
             </a>

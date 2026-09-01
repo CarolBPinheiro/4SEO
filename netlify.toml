@@ -45,3 +45,14 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+# Painel admin (SPA). Complementa deploy-out/_redirects gerado no build.
+[[redirects]]
+  from = "/admin"
+  to = "/spa.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/spa.html"
+  status = 200

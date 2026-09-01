@@ -74,6 +74,26 @@ export default function AdminHealthPage() {
             value={String(data.unprocessedWebhooks ?? 0)}
             ok={Number(data.unprocessedWebhooks ?? 0) === 0}
           />
+          <StatusCard
+            label="Webhook Typebot"
+            value={data.typebotWebhookConfigured ? "configurado" : "ausente"}
+            ok={Boolean(data.typebotWebhookConfigured)}
+          />
+          <StatusCard
+            label="Chamados abertos"
+            value={String(data.ticketsOpen ?? 0)}
+            ok={Number(data.ticketsOpen ?? 0) === 0}
+          />
+          <StatusCard
+            label="Assinaturas inadimplentes"
+            value={String(data.pastDueSubscriptions ?? 0)}
+            ok={Number(data.pastDueSubscriptions ?? 0) === 0}
+          />
+          <StatusCard
+            label="Sites conectados"
+            value={String(data.sitesTotal ?? 0)}
+            ok={Number(data.sitesTotal ?? 0) >= 0}
+          />
         </div>
       )}
 

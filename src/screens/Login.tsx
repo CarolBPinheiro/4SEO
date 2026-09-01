@@ -45,6 +45,12 @@ export default function Login() {
     if (ref) {
       persistBillingRef(ref);
       setMode("register");
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("intent") === "trial") {
+      setMode("register");
     }
   }, []);
 

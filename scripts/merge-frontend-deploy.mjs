@@ -33,6 +33,7 @@ const SPA_ROUTES = [
   "/historico",
   "/panorama",
   "/admin",
+  "/admin/login",
   "/admin/*",
   "/app",
   "/keywords",

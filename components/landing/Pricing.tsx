@@ -11,6 +11,7 @@ import {
   buildCheckoutPath,
   type BillingCycle,
 } from "@/lib/billing";
+import { getAppTrialUrl } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const PARALLAX_DEPTHS = [18, 34, 24] as const;
@@ -119,6 +120,8 @@ export function Pricing() {
               `${formatProducts(plan.products)} produtos otimizados por IA`,
               `${formatProducts(plan.searches)} pesquisas`,
               `Produtos extras a ${formatExtraPrice(plan.extraProductPrice)} cada`,
+              "7 dias de avaliação gratuita sem cartão",
+              "Dashboard, Análise de IA e integração de loja no trial",
             ];
 
             if (cyclePricing.bonusProducts > 0) {
@@ -227,7 +230,7 @@ export function Pricing() {
                     </ul>
 
                     <Button
-                      href={buildCheckoutPath(plan.id, billingCycle)}
+                      href={getAppTrialUrl()}
                       variant={isActive ? "primary" : "secondary"}
                       className={cn(
                         "btn-pricing-assine w-full rounded-full",
@@ -238,8 +241,19 @@ export function Pricing() {
                         setActivePlan(plan.name);
                       }}
                     >
-                      Assine
+                      Avaliação grátis — 7 dias
                     </Button>
+
+                    <a
+                      href={buildCheckoutPath(plan.id, billingCycle)}
+                      className="mt-3 block text-center text-sm font-medium text-zinc-400 underline-offset-4 hover:text-white hover:underline"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActivePlan(plan.name);
+                      }}
+                    >
+                      ou assine agora →
+                    </a>
                   </article>
                 </Parallax>
               </Reveal>

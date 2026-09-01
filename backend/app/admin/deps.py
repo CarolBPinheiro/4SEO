@@ -1,57 +1,42 @@
 """Acesso administrativo da plataforma — um único tipo, sem RBAC.
 
-Autorização: allowlist de e-mails em ADMIN_EMAILS (ou ADMIN_USER_IDS).
+Login exclusivo da área /admin: e-mail allowlist + ADMIN_PASSWORD.
+Sessão via JWT próprio (não usa a conta de cliente Supabase).
 """
 
 from __future__ import annotations
 
-import os
 import logging
-from typing import FrozenSet
+from typing import FrozenSet, Optional
 
 from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 
-from app.auth import get_current_user
+from app.admin.session import is_admin_login_email, verify_admin_token
+from app.auth import security
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_csv_env(name: str) -> FrozenSet[str]:
-    raw = os.getenv(name, "") or ""
-    items = {part.strip().lower() for part in raw.split(",") if part.strip()}
-    return frozenset(items)
-
-
 def get_admin_emails() -> FrozenSet[str]:
-    return _parse_csv_env("ADMIN_EMAILS")
+    from app.admin.session import _parse_emails
+
+    return _parse_emails()
 
 
 def get_admin_user_ids() -> FrozenSet[str]:
-    return _parse_csv_env("ADMIN_USER_IDS")
+    return frozenset()
 
 
 def is_platform_admin(user: dict) -> bool:
-    emails = get_admin_emails()
-    ids = get_admin_user_ids()
-    if not emails and not ids:
-        return False
     email = (user.get("email") or "").strip().lower()
-    user_id = (user.get("user_id") or "").strip().lower()
-    if email and email in emails:
-        return True
-    if user_id and user_id in ids:
-        return True
-    return False
+    return is_admin_login_email(email)
 
 
-async def require_platform_admin(user: dict = Depends(get_current_user)) -> dict:
-    """JWT válido + allowlist. Sem hierarquia de papéis."""
-    if not get_admin_emails() and not get_admin_user_ids():
-        logger.warning("ADMIN_EMAILS/ADMIN_USER_IDS não configurados — admin bloqueado")
-        raise HTTPException(
-            status_code=503,
-            detail="Painel administrativo não configurado.",
-        )
-    if not is_platform_admin(user):
-        raise HTTPException(status_code=403, detail="Acesso administrativo negado.")
-    return user
+async def require_platform_admin(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> dict:
+    """Bearer da sessão /admin/login. Sem hierarquia de papéis."""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Autenticação administrativa necessária.")
+    return verify_admin_token(credentials.credentials)

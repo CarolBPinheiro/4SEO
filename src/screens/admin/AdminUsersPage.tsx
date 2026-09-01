@@ -35,8 +35,8 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
-        <p className="text-sm text-zinc-400">Auth Supabase + status de assinatura local</p>
+        <h1 className="text-2xl font-bold tracking-tight">Assinantes</h1>
+        <p className="text-sm text-zinc-400">Contas, plano contratado e último acesso</p>
       </div>
 
       <div className="flex flex-wrap gap-3">

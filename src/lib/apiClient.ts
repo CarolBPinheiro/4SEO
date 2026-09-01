@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { clearAdminSession, getAdminToken } from "@/lib/adminSession";
 // Tipos das integrações VTEX/Loja Integrada (import type: sem dependência de runtime)
 import type {
   ProductsResponse,
@@ -22,7 +23,7 @@ interface IntegrationConnectResponse {
   detail?: string;
 }
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export function getToken(): string | null {
   return localStorage.getItem("auth_token");
@@ -107,6 +108,37 @@ async function request<T>(path: string, method: HttpMethod, body?: any): Promise
     if (res.status === 402 || data?.code === "subscription_required") {
       err.code = "subscription_required";
     }
+    throw err;
+  }
+  return data as T;
+}
+
+async function adminRequest<T>(path: string, method: HttpMethod, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getAdminToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (res.status === 401) {
+    clearAdminSession();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
+      window.location.href = "/admin/login";
+    }
+  }
+
+  if (!res.ok) {
+    const detail = data?.detail || data?.message || `Erro HTTP ${res.status}`;
+    const msg = typeof detail === "string" ? detail : JSON.stringify(detail);
+    const err = new Error(msg) as Error & { status?: number };
+    err.status = res.status;
     throw err;
   }
   return data as T;
@@ -599,9 +631,23 @@ export const api = {
   },
 
   admin: {
-    me: () => request<{ ok: boolean; userId: string; email: string }>("/admin/me", "GET"),
+    login: async (email: string, password: string) => {
+      const res = await fetch(`${API_BASE}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) {
+        const detail = data?.detail || data?.message || `Erro HTTP ${res.status}`;
+        throw new Error(typeof detail === "string" ? detail : "Falha no login administrativo");
+      }
+      return data as { ok: boolean; token: string; email: string };
+    },
+    me: () => adminRequest<{ ok: boolean; userId: string | null; email: string }>("/admin/me", "GET"),
     overview: (period: "7d" | "30d" | "90d" | "12m" = "30d") =>
-      request<Record<string, unknown>>(`/admin/overview?period=${period}`, "GET"),
+      adminRequest<Record<string, unknown>>(`/admin/overview?period=${period}`, "GET"),
     users: (params: { page?: number; perPage?: number; q?: string; subscription?: string } = {}) => {
       const qs = new URLSearchParams();
       if (params.page) qs.set("page", String(params.page));
@@ -609,7 +655,7 @@ export const api = {
       if (params.q) qs.set("q", params.q);
       if (params.subscription) qs.set("subscription", params.subscription);
       const q = qs.toString();
-      return request<{
+      return adminRequest<{
         items: Array<Record<string, unknown>>;
         page: number;
         perPage: number;
@@ -617,20 +663,52 @@ export const api = {
       }>(`/admin/users${q ? `?${q}` : ""}`, "GET");
     },
     user: (userId: string) =>
-      request<Record<string, unknown>>(`/admin/users/${encodeURIComponent(userId)}`, "GET"),
-    subscriptions: (params: { status?: string; page?: number; perPage?: number } = {}) => {
+      adminRequest<Record<string, unknown>>(`/admin/users/${encodeURIComponent(userId)}`, "GET"),
+    subscriptions: (
+      params: { status?: string; plan?: string; expiringDays?: number; page?: number; perPage?: number } = {}
+    ) => {
       const qs = new URLSearchParams();
       if (params.status) qs.set("status", params.status);
+      if (params.plan) qs.set("plan", params.plan);
+      if (params.expiringDays) qs.set("expiringDays", String(params.expiringDays));
       if (params.page) qs.set("page", String(params.page));
       if (params.perPage) qs.set("perPage", String(params.perPage));
       const q = qs.toString();
-      return request<{ items: Array<Record<string, unknown>>; page: number; perPage: number }>(
-        `/admin/subscriptions${q ? `?${q}` : ""}`,
-        "GET"
-      );
+      return adminRequest<{
+        items: Array<Record<string, unknown>>;
+        page: number;
+        perPage: number;
+        total: number;
+      }>(`/admin/subscriptions${q ? `?${q}` : ""}`, "GET");
     },
-    health: () => request<Record<string, unknown>>("/admin/health", "GET"),
+    changePlan: (
+      subscriptionId: string,
+      body: { planId: string; billingCycle?: string; reason?: string }
+    ) =>
+      adminRequest<{ ok: boolean; subscription: Record<string, unknown> }>(
+        `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/change-plan`,
+        "POST",
+        body
+      ),
+    cancelSubscription: (subscriptionId: string, reason: string) =>
+      adminRequest<{ ok: boolean; subscription: Record<string, unknown> }>(
+        `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`,
+        "POST",
+        { reason }
+      ),
+    tickets: () =>
+      adminRequest<{ items: Array<Record<string, unknown>>; counts: Record<string, number> }>(
+        "/admin/tickets",
+        "GET"
+      ),
+    patchTicket: (ticketId: string, body: { status?: string; priority?: string }) =>
+      adminRequest<{ ok: boolean; ticket: Record<string, unknown> }>(
+        `/admin/tickets/${encodeURIComponent(ticketId)}`,
+        "PATCH",
+        body
+      ),
+    health: () => adminRequest<Record<string, unknown>>("/admin/health", "GET"),
     audit: (limit = 50) =>
-      request<{ items: Array<Record<string, unknown>> }>(`/admin/audit?limit=${limit}`, "GET"),
+      adminRequest<{ items: Array<Record<string, unknown>> }>(`/admin/audit?limit=${limit}`, "GET"),
   },
 };

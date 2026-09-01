@@ -1,6 +1,7 @@
 "use client";
 
 import { FAQSection } from "@/components/ui/faqsection";
+import { getAppTrialUrl } from "@/lib/site";
 
 const faqsLeft = [
   {
@@ -44,8 +45,8 @@ export function FAQ() {
       title="Perguntas frequentes"
       subtitle="Suporte & Dúvidas"
       description="Respostas objetivas antes de começar o teste gratuito."
-      buttonLabel="Ver planos →"
-      buttonHref="#planos"
+      buttonLabel="Começar teste grátis →"
+      buttonHref={getAppTrialUrl()}
       faqsLeft={faqsLeft}
       faqsRight={faqsRight}
     />

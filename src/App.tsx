@@ -29,7 +29,8 @@ import AdminUserDetailPage from "./screens/admin/AdminUserDetailPage";
 import AdminSubscriptionsPage from "./screens/admin/AdminSubscriptionsPage";
 import AdminHealthPage from "./screens/admin/AdminHealthPage";
 import AdminAuditPage from "./screens/admin/AdminAuditPage";
-import AdminContentPage from "./screens/admin/AdminContentPage";
+import AdminTicketsPage from "./screens/admin/AdminTicketsPage";
+import AdminLoginPage from "./screens/admin/AdminLoginPage";
 
 const queryClient = new QueryClient();
 
@@ -122,6 +123,7 @@ const App = () => (
                 }
               />
 
+              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route
                 path="/admin"
                 element={
@@ -134,9 +136,9 @@ const App = () => (
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="users/:userId" element={<AdminUserDetailPage />} />
                 <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+                <Route path="tickets" element={<AdminTicketsPage />} />
                 <Route path="health" element={<AdminHealthPage />} />
                 <Route path="audit" element={<AdminAuditPage />} />
-                <Route path="conteudo" element={<AdminContentPage />} />
               </Route>
 
               <Route path="/app" element={<Navigate to="/analise" replace />} />

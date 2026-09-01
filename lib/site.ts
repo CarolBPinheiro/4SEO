@@ -20,3 +20,8 @@ export function getAppBaseUrl(): string {
 export function getAppLoginUrl(): string {
   return `${getAppBaseUrl()}/login`;
 }
+
+/** Início do fluxo de avaliação gratuita (cadastro/login → escolha de plano em /trial). */
+export function getAppTrialUrl(): string {
+  return `${getAppBaseUrl()}/login?intent=trial`;
+}

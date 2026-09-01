@@ -33,3 +33,6 @@ checkout_limiter = InMemoryRateLimiter(max_requests=10, window_seconds=60.0)
 
 # Webhook: 120 req / min por IP (Asaas pode reenviar em rajadas)
 webhook_limiter = InMemoryRateLimiter(max_requests=120, window_seconds=60.0)
+
+# Login do painel admin: 8 tentativas / min por IP
+admin_login_limiter = InMemoryRateLimiter(max_requests=8, window_seconds=60.0)
