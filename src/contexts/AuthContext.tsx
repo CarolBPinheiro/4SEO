@@ -16,7 +16,7 @@ interface AuthContextType extends AuthState {
   signUp: (
     email: string,
     password: string,
-  ) => Promise<{ error?: string; sessionCreated?: boolean }>;
+  ) => Promise<{ error?: string; sessionCreated?: boolean; reason?: "existing_user" | "email_confirmation" }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   updatePassword: (password: string) => Promise<{ error?: string }>;
@@ -200,6 +200,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
+    const existingAccountMessage =
+      "Este e-mail já possui uma conta. Faça login ou use “Esqueceu sua senha?” para recuperar o acesso.";
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -208,7 +211,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: `${window.location.origin}/login`,
       },
     });
-    if (error) return { error: error.message };
+
+    if (error) {
+      const message = error.message.toLowerCase();
+      if (
+        message.includes("already registered") ||
+        message.includes("already been registered") ||
+        message.includes("user already")
+      ) {
+        return {
+          sessionCreated: false as const,
+          reason: "existing_user" as const,
+          error: existingAccountMessage,
+        };
+      }
+      return { error: error.message };
+    }
+
+    // Com "Confirm email" ativo, o Supabase não revela conta existente: devolve
+    // user sem identities e sem sessão (e não reenvia e-mail de confirmação).
+    const identities = data.user?.identities ?? [];
+    if (data.user && identities.length === 0) {
+      return {
+        sessionCreated: false as const,
+        reason: "existing_user" as const,
+        error: existingAccountMessage,
+      };
+    }
 
     // Dropbox-like: se o Supabase já devolveu sessão, segue autenticado
     if (data.session?.access_token) {
@@ -216,16 +245,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { sessionCreated: true as const };
     }
 
-    // Sem sessão (ex.: confirmação de e-mail ligada) — tenta login imediato
+    // Conta nova sem sessão (confirmação de e-mail ligada) — tenta login imediato
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (signInError) {
+      const signInMessage = signInError.message.toLowerCase();
+      if (
+        signInMessage.includes("email not confirmed") ||
+        signInMessage.includes("not confirmed")
+      ) {
+        return {
+          sessionCreated: false as const,
+          reason: "email_confirmation" as const,
+          error:
+            "Conta criada. Confirme o e-mail enviado e faça login para escolher seu plano.",
+        };
+      }
       return {
         sessionCreated: false as const,
+        reason: "email_confirmation" as const,
         error:
-          "Conta criada. Confirme o e-mail enviado e faça login para escolher seu plano.",
+          "Conta criada. Se o e-mail de confirmação não chegar em alguns minutos, faça login ou use “Esqueceu sua senha?”.",
       };
     }
     if (signInData.session?.access_token) {

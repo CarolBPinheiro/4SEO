@@ -12,6 +12,8 @@ import { clearAppLocalStorage, AuthProvider, useAuth } from "@/contexts/AuthCont
  */
 
 const signOutMock = vi.fn().mockResolvedValue({ error: null });
+const signUpMock = vi.fn().mockResolvedValue({ data: { session: null, user: null }, error: null });
+const signInWithPasswordMock = vi.fn().mockResolvedValue({ data: {}, error: null });
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -21,8 +23,8 @@ vi.mock("@/lib/supabase", () => ({
       signOut: (...args: unknown[]) => signOutMock(...args),
       updateUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
       resetPasswordForEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
-      signInWithPassword: vi.fn().mockResolvedValue({ data: {}, error: null }),
-      signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signInWithPassword: (...args: unknown[]) => signInWithPasswordMock(...args),
+      signUp: (...args: unknown[]) => signUpMock(...args),
     },
   },
 }));
@@ -82,5 +84,34 @@ describe("AuthContext.signOut — regressão #14", () => {
     expect(signOutMock).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("4seo_store")).toBeNull();
     expect(localStorage.getItem("nuvemshop_rollbacks_999")).toBeNull();
+  });
+});
+
+describe("AuthContext.signUp — e-mail já cadastrado", () => {
+  beforeEach(() => {
+    signUpMock.mockReset();
+    signInWithPasswordMock.mockReset();
+  });
+
+  it("não promete e-mail de confirmação quando o Supabase mascara conta existente", async () => {
+    signUpMock.mockResolvedValue({
+      data: {
+        session: null,
+        user: { id: "existing", identities: [] },
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    let response: Awaited<ReturnType<typeof result.current.signUp>> | undefined;
+    await act(async () => {
+      response = await result.current.signUp("carolbraga@4scale.com.br", "Senha@123");
+    });
+
+    expect(response?.reason).toBe("existing_user");
+    expect(response?.sessionCreated).toBe(false);
+    expect(response?.error).toMatch(/já possui uma conta/i);
+    expect(signInWithPasswordMock).not.toHaveBeenCalled();
   });
 });

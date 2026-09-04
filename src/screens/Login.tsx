@@ -205,7 +205,12 @@ export default function Login() {
 
     if (result.error && !result.sessionCreated) {
       continueAfterAuthRef.current = false;
-      if (result.error.toLowerCase().includes("conta criada")) {
+      if (result.reason === "existing_user") {
+        setError(result.error);
+        setMode("login");
+        return;
+      }
+      if (result.reason === "email_confirmation") {
         setMessage(result.error);
         setMode("login");
         return;
