@@ -144,7 +144,8 @@ As rotas privadas usam o wrapper `ProtectedApp`, que combina três camadas:
 **`AuthContext` (`src/contexts/AuthContext.tsx`)** — fonte única da identidade no frontend.
 
 - Ao montar, chama `supabase.auth.getSession()` e assina `supabase.auth.onAuthStateChange`. Em ambos os casos, propaga o `access_token` para o cliente HTTP via `setToken()`.
-- Expõe `user`, `session`, `loading`, `signIn`, `signUp`, `signOut`, `resetPassword`.
+- Expõe `user`, `session`, `loading`, `passwordRecovery`, `signIn`, `signUp`, `signOut`, `resetPassword`, `updatePassword`.
+- No fluxo de recuperação de senha (`PASSWORD_RECOVERY` / `?type=recovery`), o Login exibe o formulário de nova senha e **não** encerra a sessão.
 - `signOut` encerra a sessão no Supabase, limpa o token e chama `clearAppLocalStorage()`, que remove as chaves gravadas pela aplicação (`4seo_store`, `shopify_rollbacks_*`, `nuvemshop_rollbacks_*`, `vtex_rollbacks_*`, `lojaintegrada_rollbacks_*`). Isso impede que dados de uma conta permaneçam visíveis para o próximo usuário no mesmo navegador.
 - A URL de retorno de cadastro/recuperação de senha vem de `VITE_AUTH_REDIRECT_URL`, com fallback para `${window.location.origin}/login`.
 

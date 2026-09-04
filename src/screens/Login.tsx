@@ -11,6 +11,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMarketingUrl } from "@/lib/site";
@@ -21,17 +22,29 @@ import {
 } from "@/lib/billingClaim";
 import { fetchSubscription } from "@/contexts/BillingContext";
 import { resolvePostAuthPath } from "@/lib/subscriptionAccess";
+import { getValidationErrors, newPasswordSchema } from "@/lib/validation";
 
-type AuthMode = "login" | "register" | "forgot";
+type AuthMode = "login" | "register" | "forgot" | "reset";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, signUp, resetPassword, signOut, user, loading: authLoading } =
-    useAuth();
+  const {
+    signIn,
+    signUp,
+    resetPassword,
+    updatePassword,
+    clearPasswordRecovery,
+    signOut,
+    user,
+    loading: authLoading,
+    passwordRecovery,
+  } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -56,6 +69,15 @@ export default function Login() {
 
   useEffect(() => {
     if (authLoading) {
+      return;
+    }
+
+    // Link de recuperação: manter a sessão e exibir formulário de nova senha
+    if (passwordRecovery) {
+      setSessionCheck(false);
+      setMode("reset");
+      setError("");
+      setMessage("");
       return;
     }
 
@@ -123,10 +145,12 @@ export default function Login() {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading, navigate, signOut]);
+  }, [user, authLoading, passwordRecovery, navigate, signOut]);
 
   const showSessionGate =
-    authLoading || (sessionCheck && !!user) || continueAfterAuthRef.current;
+    authLoading ||
+    (sessionCheck && !!user && !passwordRecovery) ||
+    continueAfterAuthRef.current;
 
   if (showSessionGate) {
     return (
@@ -213,6 +237,39 @@ export default function Login() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    const parsed = newPasswordSchema.safeParse({ password, confirmPassword });
+    if (!parsed.success) {
+      const fieldErrors = getValidationErrors(parsed.error);
+      setError(
+        fieldErrors.confirmPassword ||
+          fieldErrors.password ||
+          "Verifique os campos da nova senha.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    continueAfterAuthRef.current = true;
+    const result = await updatePassword(parsed.data.password);
+    setLoading(false);
+
+    if (result.error) {
+      continueAfterAuthRef.current = false;
+      setError(result.error);
+      return;
+    }
+
+    setPassword("");
+    setConfirmPassword("");
+    setMessage("Senha atualizada com sucesso.");
+    await finishAuthAndClaim();
+  };
+
   const goToMarketing = () => {
     window.location.assign(getMarketingUrl());
   };
@@ -222,7 +279,9 @@ export default function Login() {
       ? "Olá, que bom ver você de volta!"
       : mode === "register"
         ? "Comece sua jornada na 4SEO"
-        : "Recupere o acesso";
+        : mode === "reset"
+          ? "Defina sua nova senha"
+          : "Recupere o acesso";
 
   const subtitle =
     mode === "login"
@@ -231,7 +290,9 @@ export default function Login() {
         ? hasBillingRef
           ? "Finalize seu acesso para vincular o pagamento ao seu usuário."
           : "Crie sua conta e escolha o plano de avaliação em seguida."
-        : "Informe seu e-mail para receber o link de recuperação.";
+        : mode === "reset"
+          ? "Escolha uma senha forte para concluir a recuperação do acesso."
+          : "Informe seu e-mail para receber o link de recuperação.";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050506] text-white">
@@ -483,6 +544,106 @@ export default function Login() {
                     className="font-semibold text-[#ff8a3d] hover:underline"
                   >
                     Voltar ao login
+                  </button>
+                </p>
+              </>
+            )}
+
+            {mode === "reset" && (
+              <>
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password" className="sr-only">
+                      Nova senha
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                      <Input
+                        id="new-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Nova senha"
+                        autoComplete="new-password"
+                        className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-10 pr-11"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200"
+                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password" className="sr-only">
+                      Confirmar nova senha
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                      <Input
+                        id="confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar nova senha"
+                        autoComplete="new-password"
+                        className="h-12 rounded-xl border-white/10 bg-white/[0.06] pl-10 pr-11"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={8}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200"
+                        aria-label={
+                          showConfirmPassword ? "Ocultar senha" : "Mostrar senha"
+                        }
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs leading-relaxed text-zinc-500">
+                    Use no mínimo 8 caracteres, com letras maiúsculas e minúsculas,
+                    número e caractere especial.
+                  </p>
+
+                  <Button
+                    type="submit"
+                    className="btn-gradient mt-2 h-12 w-full rounded-xl font-semibold text-primary-foreground"
+                    size="lg"
+                    disabled={loading}
+                  >
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    {loading ? "Atualizando..." : "Atualizar senha"}
+                  </Button>
+                </form>
+
+                <p className="mt-8 text-center text-sm text-zinc-400">
+                  Link expirado?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearPasswordRecovery();
+                      void signOut();
+                      setMode("forgot");
+                      setPassword("");
+                      setConfirmPassword("");
+                      setError("");
+                      setMessage("");
+                    }}
+                    className="font-semibold text-[#ff8a3d] hover:underline"
+                  >
+                    Solicitar novo link
                   </button>
                 </p>
               </>

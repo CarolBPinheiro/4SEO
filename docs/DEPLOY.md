@@ -307,10 +307,12 @@ function getAuthRedirectUrl() {
 
 Ou seja: se `VITE_AUTH_REDIRECT_URL` estiver definida, ela é usada literalmente; caso contrário, o destino é a **origem atual + `/login`**. Essa mesma função alimenta os dois fluxos de e-mail:
 
-- **Confirmação de cadastro** — `supabase.auth.signUp({ ..., options: { emailRedirectTo: getAuthRedirectUrl() } })`
-- **Recuperação de senha** — `supabase.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() })`
+- **Confirmação de cadastro** — `supabase.auth.signUp({ ..., options: { emailRedirectTo: .../login } })`
+- **Recuperação de senha** — `supabase.auth.resetPasswordForEmail(email, { redirectTo: .../login?type=recovery })`
 
-Portanto, a lista de **Redirect URLs** precisa conter exatamente as URLs terminadas em `/login` para cada origem em que o app é servido (produção, `www`, e a porta local `8080` definida em `vite.config.ts`). Se a URL enviada não estiver na lista, o Supabase descarta o destino e envia o usuário para a **Site URL**, o que aparece para o usuário final como "cliquei no link do e-mail e caí na página errada" (ou em `localhost`). A rota `/login` existe no roteador do app (`src/App.tsx`), e o SDK do Supabase consome automaticamente os parâmetros de sessão presentes na URL ao carregar essa página.
+O query `type=recovery` faz o app abrir o formulário de nova senha em vez de tratar a sessão como login normal (antes o `/login` encerrava a sessão de recovery ou redirecionava ao dashboard sem permitir trocar a senha).
+
+Portanto, a lista de **Redirect URLs** precisa conter exatamente as URLs terminadas em `/login` para cada origem em que o app é servido (produção, `www`, e a porta local `8080` definida em `vite.config.ts`). Query strings como `?type=recovery` não precisam estar na allowlist — o Supabase valida origem + path. Se a URL enviada não estiver na lista, o Supabase descarta o destino e envia o usuário para a **Site URL**, o que aparece para o usuário final como "cliquei no link do e-mail e caí na página errada" (ou em `localhost`). A rota `/login` existe no roteador do app (`src/App.tsx`), e o SDK do Supabase consome automaticamente os parâmetros de sessão presentes na URL ao carregar essa página.
 
 ### 4.4 Demais ajustes de autenticação
 

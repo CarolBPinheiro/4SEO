@@ -1,27 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Login from "@/screens/Login";
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    resetPassword: vi.fn(),
-    signOut: vi.fn(),
-    user: null,
-    loading: false,
-  }),
-}));
+const authMock = {
+  signIn: vi.fn(),
+  signUp: vi.fn(),
+  resetPassword: vi.fn(),
+  updatePassword: vi.fn(),
+  clearPasswordRecovery: vi.fn(),
+  signOut: vi.fn(),
+  user: null as { id: string } | null,
+  loading: false,
+  passwordRecovery: false,
+};
 
-vi.mock("@/contexts/DemoContext", () => ({
-  useDemo: () => ({
-    enabled: true,
-    loading: false,
-    loginEmail: "demo@demo.4seo.local",
-    loginPassword: "Demo4SEO!local",
-    accounts: [],
-  }),
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => authMock,
 }));
 
 vi.mock("@/lib/billingClaim", () => ({
@@ -30,19 +25,42 @@ vi.mock("@/lib/billingClaim", () => ({
   readPendingBillingRef: () => null,
 }));
 
-describe("Login — sandbox demo", () => {
-  it("preenche a conta demo no atalho", () => {
+vi.mock("@/contexts/BillingContext", () => ({
+  fetchSubscription: vi.fn().mockResolvedValue({ accessLevel: "none" }),
+}));
+
+describe("Login — recuperação de senha", () => {
+  it("exibe o formulário de login por padrão", () => {
+    authMock.passwordRecovery = false;
+    authMock.user = null;
+
     render(
       <MemoryRouter>
         <Login />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Preencher conta demo/i }));
+    expect(
+      screen.getByRole("heading", { name: /que bom ver você de volta/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Fazer login/i })).toBeInTheDocument();
+  });
 
-    expect(screen.getByPlaceholderText("Endereço de e-mail")).toHaveValue(
-      "demo@demo.4seo.local",
+  it("abre o formulário de nova senha no fluxo passwordRecovery", () => {
+    authMock.passwordRecovery = true;
+    authMock.user = { id: "user-1" };
+
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>,
     );
-    expect(screen.getByPlaceholderText("Senha")).toHaveValue("Demo4SEO!local");
+
+    expect(
+      screen.getByRole("heading", { name: /Defina sua nova senha/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Nova senha")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Confirmar nova senha")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Atualizar senha/i })).toBeInTheDocument();
   });
 });
